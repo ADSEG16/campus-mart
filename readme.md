@@ -1,33 +1,16 @@
-# CampusMart
+# React + Vite
 
-A student-to-student cash-on-deliver marketplace platform designed to transition campus trading from unorganized social media groups to a structured, secure, and reliable web platform. 
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-By leveraging university-verified credentials and a specialized Cash-on-Delivery (COD) workflow, CampusMart ensures that every transaction happens within a "Circle of Trust."
+Currently, two official plugins are available:
 
----
-### Purpose
-In many university ecosystems, students rely on cluttered WhatsApp or Telegram groups to buy and sell items. These lack searchability, formalize no accountability, and are prone to scams. **CampusMart** solves this by providing a dedicated 3-tier web architecture that centralizes campus commerce, ensures user authenticity, and tracks transaction reliability through a proprietary Trust Score system.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-### Target Users
-* **Verified Students:** Currently enrolled students who require a safe space to trade textbooks, electronics, and furniture within their campus vicinity.
-* **System Administrators:** Staff or student leads responsible for monitoring platform health, verifying accounts, and mitigating fraudulent activity.
+## React Compiler
 
-### Key Features
-* **University Verification:** Secure onboarding using official university email/ID credentials to ensure a "students-only" environment.
-* **Structured COD Workflow:** A custom state-machine logic (Order -> Meetup -> Completion) specifically designed for face-to-face campus transactions.
-* **Trust Score System:** An intelligent reliability metric that updates based on successful deliveries and transaction history.
-* **Smart Search & Filtering:** Categorized browsing (Books, Electronics, etc.) with advanced filtering to find items near specific campus landmarks.
-* **AI-Driven Insights:** A recommendation engine for personalized product discovery and automated fraud detection to flag suspicious cancellation patterns.
-* **Media Optimization:** Integrated with Cloudinary for high-performance image hosting and optimized delivery of product listings.
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
----
-## Repository Structure
-/frontend
-/backend
-/docs
+## Expanding the ESLint configuration
 
-## Getting Started
-Basic setup steps (high level)
-
-
-
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
