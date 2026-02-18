@@ -1,0 +1,96 @@
+import React, { useState } from 'react';
+import secLogo from "../../assets/sec-logo.svg";
+
+export default function LoginForm() {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        // Handle login logic here
+        console.log('Login attempt:', { email, password });
+        // You can add API call here
+    };
+
+    return (
+        <div className="container-main flex flex-col items-center justify-center min-h-screen px-4">
+            {/* Added border container */}
+            <div className="border border-gray-300 rounded-2xl p-8 w-full max-w-md shadow-lg">
+                <div className="login-header flex flex-col items-center justify-center mb-6">
+                    <img 
+                        src={secLogo} 
+                        alt="SEC Logo" 
+                        className="sec-logo w-16 h-16 mb-4" 
+                    />
+                    <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
+                    <p className="text-gray-600 mt-2">Log in to the verified student marketplace</p>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="login-form flex flex-col w-full space-y-4">
+                    <div className='flex flex-col space-y-1'>
+                        <label htmlFor="email" className="text-sm font-medium text-gray-700">
+                           UNIVERSITY EMAIL
+                        </label>
+                        <input 
+                            id="email"
+                            type="email" 
+                            placeholder="student@st.ug.edu.gh" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className='w-full px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                        />
+                    </div>
+                    
+                    <div className='flex flex-col space-y-1'>
+                        <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                            PASSWORD
+                        </label>
+                        <input 
+                            id="password"
+                            type="password" 
+                            placeholder="*************" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className='w-full px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                        />
+                    </div>
+                    
+                    <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center">
+                            <input
+                                id="remember"
+                                type="checkbox"
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
+                                Remember me
+                            </label>
+                        </div>
+                        
+                        <div className="text-sm">
+                            <a href="#" className="text-blue-600 hover:text-blue-800">
+                                Forgot password?
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        type="submit" 
+                        className="w-full h-14 bg-[#137FEC] text-white py-2 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium mt-4"
+                    >
+                      Login to CampusMart
+                    </button>
+                </form>
+                
+                <p className="mt-6 text-sm text-gray-600 text-center">
+                    New to CampusMart?{' '}
+                    <a href="/signup" className="text-blue-600 hover:text-blue-800 font-medium">
+                        Create a verified account
+                    </a>
+                </p>
+            </div>
+        </div>
+    );
+}
