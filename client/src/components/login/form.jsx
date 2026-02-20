@@ -78,7 +78,7 @@ export default function LoginForm() {
                     
                     <button 
                         type="submit" 
-                        className="w-full h-14 bg-[#137FEC] text-white py-2 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium mt-4"
+                        className="w-full bg-[#137FEC] text-white py-3 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium mt-4"
                     >
                       Login to CampusMart
                     </button>
