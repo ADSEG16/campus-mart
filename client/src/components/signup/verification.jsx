@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import ProgressBar from "./progressBar";
 import studentID from "../../assets/studentID.webp";
 import { useNavigate } from "react-router-dom";
+import Navbar from '../navbar';
+import Footer from '../footer';
 
 export default function Verification() {
 	const navigate = useNavigate();
@@ -92,13 +94,15 @@ export default function Verification() {
 	};
 
 	return (
-		<div className="container-main flex flex-col items-center justify-center min-h-screen px-4 py-8">
-						 {/* Progress Bar */}
-			<div className="w-full bg-white mb-8">
-                <div className="max-w-4xl mx-auto px-4 py-6">
-                    <ProgressBar currentStep={3} />
-                </div>
-            </div>
+		<div>
+			<Navbar />
+		<div className="container-main flex flex-col items-center justify-center min-h-screen px-4 ">
+			{/* Progress Bar */}
+			<div className="w-full bg-white mb-2">
+				<div className="max-w-2xl mx-auto px-4 py-6">
+					<ProgressBar currentStep={2} />
+				</div>
+			</div>
 			
 			<div className="border border-gray-300 rounded-2xl p-8 w-2xl max-w-3xl shadow-lg bg-white">
 				<div className="flex flex-col items-left justify-left mb-6">
@@ -226,19 +230,19 @@ export default function Verification() {
 							<h4 className="text-sm font-semibold text-blue-800 mb-2">Verification Requirements:</h4>
 							<ul className="space-y-2">
 								<li className="flex items-start text-sm text-blue-700">
-									<svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+									<svg className="w-4 h-4 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
 										<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
 									</svg>
 									Full name must be clearly visible
 								</li>
 								<li className="flex items-start text-sm text-blue-700">
-									<svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+									<svg className="w-4 h-4 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
 										<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
 									</svg>
 									Photo must be bright and clear
 								</li>
 								<li className="flex items-start text-sm text-blue-700">
-									<svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+									<svg className="w-4 h-4 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
 										<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
 									</svg>
 									Expiration date must be current
@@ -249,7 +253,7 @@ export default function Verification() {
 						{/* Example Format */}
 						<div className="space-y-2">
 							<label className="block text-sm font-medium text-gray-700">
-								SAMPLE VALID
+								EXAMPLE FORMAT
 							</label>
 							<div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
 								<div className="relative">
@@ -258,7 +262,7 @@ export default function Verification() {
 										alt="Student ID Example" 
 										className="w-full h-48 object-contain rounded-lg"
 									/>
-									<div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end justify-center">
+									<div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end justify-center">
 										<p className="text-white text-xs p-2">Example of a valid student ID</p>
 									</div>
 								</div>
@@ -293,6 +297,20 @@ export default function Verification() {
 					</button>
 				</div>
 			</div>
+		</div>
+		<div>
+                <div className="mt-8 flex flex-row justify-center items-center gap-6 text-gray-500 text-sm">
+                    <p className="flex items-center">
+                        <span className="mr-1 text-[#137FEC]">✓</span> 
+                        Verified Student
+                    </p>
+                    <p className="flex items-center">
+                        <span className="mr-1 text-[#137FEC]">🛡️</span> 
+                        Safe trading
+                    </p>
+                </div>
+            </div>
+		<Footer />
 		</div>
 	);
 }
