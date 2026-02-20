@@ -46,7 +46,7 @@ export default function SignUpForm() {
                 </div>
             </div>
 
-            <div className="border border-gray-300 rounded-2xl p-8 w-full max-w-3xl shadow-lg">
+            <div className="border border-gray-300 rounded-2xl p-8 w-2xl max-w-3xl shadow-lg">
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Step 1: Account Details</h2>
                 <p className="text-gray-600 mb-6">Let's get started with your basic information.</p>
                 
@@ -168,8 +168,8 @@ export default function SignUpForm() {
                     {/* Submit Button - Full Width */}
                     <div className="flex justify-center pt-4">
                         <button 
-                            type="submit"
-                            className="w-full md:w-1/2 h-12 bg-[#137FEC] text-white py-2 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium"
+                            type="submit" 
+                        className="w-full bg-[#137FEC] text-white py-3 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium mt-4"
                         >
                             Continue to Verification
                         </button>
