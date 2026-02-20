@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import ProgressBar from "./progressBar";
 import { useNavigate } from 'react-router-dom';
+import Navbar from '../navbar';
+import Footer from '../footer';
 
 export default function Profile() {
 		const navigate = useNavigate();	
@@ -39,10 +41,12 @@ export default function Profile() {
 		}
 
     return (
+			<div>
+				<Navbar />
         <div className="container-main flex flex-col items-center justify-center min-h-screen px-4">
             {/* Progress Bar */}
-            <div className="w-full bg-white mb-8">
-                <div className="max-w-4xl mx-auto px-4 py-6">
+            <div className="w-full bg-white mb-2">
+                <div className="max-w-2xl mx-auto px-4 py-6">
                     <ProgressBar currentStep={3} />
                 </div>
             </div>
@@ -178,5 +182,19 @@ export default function Profile() {
                 </div>
             </div>
         </div>
+				<div>
+                <div className="mt-8 flex flex-row justify-center items-center gap-6 text-gray-500 text-sm">
+                    <p className="flex items-center">
+                        <span className="mr-1 text-[#137FEC]">✓</span> 
+                        Verified Student
+                    </p>
+                    <p className="flex items-center">
+                        <span className="mr-1 text-[#137FEC]">🛡️</span> 
+                        Safe trading
+                    </p>
+                </div>
+            </div>
+				<Footer />
+				</div>
     );
 }

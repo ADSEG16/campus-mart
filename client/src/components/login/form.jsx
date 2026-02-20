@@ -91,6 +91,18 @@ export default function LoginForm() {
                     </a>
                 </p>
             </div>
+            <div>
+                <div className="mt-8 flex flex-row justify-center items-center gap-6 text-gray-500 text-sm">
+                    <p className="flex items-center">
+                        <span className="mr-1 text-[#137FEC]">✓</span> 
+                        Verified Student
+                    </p>
+                    <p className="flex items-center">
+                        <span className="mr-1 text-[#137FEC]">🛡️</span> 
+                        Safe trading
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }
