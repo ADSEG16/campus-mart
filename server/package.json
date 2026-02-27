@@ -4,6 +4,7 @@
   "description": "//Backend",
   "main": "index.js",
   "scripts": {
+    "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "jest"
   },
@@ -15,9 +16,11 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "mongoose": "^9.2.3"
   },
   "devDependencies": {
     "jest": "^30.2.0",
