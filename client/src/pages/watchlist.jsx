@@ -1,23 +1,22 @@
+import MyWatchlist from "../components/watchlist/MySaves";
 import Nav from "../components/nav";
-import ActiveChats from "../components/active-chats";
-import Overview from "../components/dashboard/overview";
+import Header from "../components/watchlist/header";
+import CTABanner from "../components/watchlist/CTABanner";
 import QuickStats from "../components/quickstats";
 import SafetyCard from "../components/SafetyCard";
-import PostCard from "../components/PostCard";
-import Header from "../components/dashboard/header";
+import ActiveChats from "../components/active-chats";
 
-export default function Dashboard() {
+
+export default function WatchListPage() {
     return(
         <div>
             <Nav />
             <div className="flex justify-between">
-                {/* Left section - Left aligned */}
                 <div className="flex flex-col grow">
                     <Header />
-                    <Overview />
-                    <PostCard />
+                    <MyWatchlist />
+                    <CTABanner />
                 </div>
-                
                 {/* Right section - Always on the right */}
                 <div className="flex flex-col w-1/4 shrink-0">
                     <ActiveChats />

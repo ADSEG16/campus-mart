@@ -1,6 +1,29 @@
-import React from "react";
+import React, { useState } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import Notifications from "./NotificationCard";
+
 
 const CampusNavbar = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchText, setSearchText] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // initialize from query param so input reflects current search
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get("q") || "";
+    setSearchText(q);
+  }, [location.search]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const query = searchText.trim();
+    if (!query) return;
+    // keep existing path but replace query param
+    navigate(`${location.pathname}?q=${encodeURIComponent(query)}`);
+  };
+
   return (
     <nav className="w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm">
       {/* Logo with image */}
@@ -18,9 +41,11 @@ const CampusNavbar = () => {
 
       {/* Search Bar */}
       <div className="flex-1 max-w-xl mx-8">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <input
             type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search textbooks, dorm gear, electronics..."
             className="w-full border border-gray-300 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-gray-400"
           />
@@ -38,36 +63,57 @@ const CampusNavbar = () => {
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
             />
           </svg>
-        </div>
+        </form>
       </div>
 
       {/* Right side: Browse, Safety, Icons, and Post Item */}
       <div className="flex items-center space-x-6">
-        <button className="text-sm font-medium text-gray-700 hover:text-black">
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) =>
+            `text-sm font-medium hover:text-blue-500 ${isActive ? 'text-blue-600' : 'text-gray-700'}`
+          }
+        >
           Browse
-        </button>
-        <button className="text-sm font-medium text-gray-700 hover:text-black">
+        </NavLink>
+        <NavLink
+          to="/safety"
+          className={({ isActive }) =>
+            `text-sm font-medium hover:text-blue-500 ${isActive ? 'text-blue-600' : 'text-gray-700'}`
+          }
+        >
           Safety
-        </button>
+        </NavLink>
+       
         
         {/* Notification Bell Icon */}
-        <button className="relative text-gray-600 hover:text-black">
-          <svg 
-            className="h-5 w-5" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications((prev) => !prev)}
+            className="text-gray-600 hover:text-black"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" 
-            />
-          </svg>
-          {/* Notification dot */}
-          <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
-        </button>
+            <svg 
+              className="h-5 w-5" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" 
+              />
+            </svg>
+            {/* Notification dot */}
+            <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+          </button>
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 z-50 w-80">
+              <Notifications />
+            </div>
+          )}
+        </div>
 
        
 

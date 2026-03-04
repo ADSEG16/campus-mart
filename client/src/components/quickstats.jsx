@@ -1,7 +1,13 @@
 import React from "react";
 import { Heart, Clock, Package, Star } from "lucide-react";
+import { useNavigate} from "react-router-dom";
 
 const QuickStats = () => {
+  const navigate = useNavigate();
+  const handleWatchlistClick = () => {
+    navigate("/watchlist");
+  }
+
   return (
     <div className="bg-[#0F172A] rounded-2xl border border-gray-200 p-5 mt-6 w-80 shadow-sm">
       {/* Header */}
@@ -33,16 +39,18 @@ const QuickStats = () => {
       {/* Action Links */}
       <div className="space-y-2">
         {/* My Watchlist */}
-        <button className="flex items-center justify-between w-full hover:bg-gray-50 p-3 rounded-lg transition-colors group">
-          <div className="flex items-center space-x-3">
-            <Heart className="h-4 w-4 text-gray-400 group-hover:text-red-500 transition-colors" />
-            <span className="text-sm text-white">My Watchlist</span>
-          </div>
-          {/* <span className="text-xs text-gray-400">→</span> */}
-        </button>
+        
+          <button className="flex items-center justify-between w-full hover:bg-[#2a37569a] p-3 rounded-lg transition-colors group" onClick={handleWatchlistClick}>
+            <div className="flex items-center space-x-3">
+              <Heart className="h-4 w-4 text-gray-400 group-hover:text-red-500 transition-colors" />
+              <span className="text-sm text-white">My Watchlist</span>
+            </div>
+            {/* <span className="text-xs text-gray-400">→</span> */}
+          </button>
+       
 
         {/* Transaction History */}
-        <button className="flex items-center justify-between w-full hover:bg-gray-50 p-3 rounded-lg transition-colors group">
+        <button className="flex items-center justify-between w-full hover:bg-[#2a37569a] p-3 rounded-lg transition-colors group">
           <div className="flex items-center space-x-3">
             <Clock className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
             <span className="text-sm text-white">Transaction History</span>

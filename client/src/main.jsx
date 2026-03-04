@@ -6,6 +6,7 @@ import Signup from "./pages/signup";
 import Verification from "./components/signup/verification";
 import ProfileSetup from "./components/signup/profileSetup";
 import Dashboard from "./pages/dashboard";
+import WatchList from "./pages/watchlist";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
@@ -15,6 +16,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/signup/verification" element={<Verification />} />
         <Route path="/signup/profileSetup" element={<ProfileSetup />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/watchlist" element={<WatchList />} />
     </Routes>
   </BrowserRouter>
 );

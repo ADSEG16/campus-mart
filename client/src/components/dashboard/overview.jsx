@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { MapPin, Heart, MessageCircle } from "lucide-react";
 import PostCard from "../PostCard";
 
@@ -61,10 +62,21 @@ const MarketplaceDashboard = () => {
     }
   ];
 
-  // Filter listings based on active category
-  const filteredListings = activeCategory === "All Items" 
-    ? listings 
-    : listings.filter(listing => listing.category === activeCategory);
+  // read search query from url
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const searchQuery = params.get("q")?.toLowerCase() || "";
+
+  // Filter listings based on active category and search text
+  const filteredListings = listings.filter((listing) => {
+    const matchesCategory =
+      activeCategory === "All Items" || listing.category === activeCategory;
+    const matchesSearch =
+      !searchQuery ||
+      [listing.title, listing.subtitle, listing.description]
+        .some((field) => field.toLowerCase().includes(searchQuery));
+    return matchesCategory && matchesSearch;
+  });
 
   const getConditionColor = (condition, color) => {
     const colorMap = {
@@ -119,10 +131,10 @@ const MarketplaceDashboard = () => {
       </div>
 
       {/* Main Content - Grid Layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Listings - Now using filteredListings */}
         {filteredListings.map((listing) => (
-          <div key={listing.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+          <div key={listing.id} className="border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
             {/* Image Placeholder */}
             <div className="h-40 sm:h-48 bg-linear-to-br from-gray-100 to-gray-200 flex items-center justify-center relative">
               <span className="text-gray-400 text-xs sm:text-sm">Product Image</span>
