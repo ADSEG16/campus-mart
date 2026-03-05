@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { ORDER_STATUS, ORDER_STATUS_VALUES } = require('../constants/orderStatus');
 
 const orderItemSchema = new mongoose.Schema(
   {
@@ -49,8 +50,8 @@ const orderSchema = new mongoose.Schema(
 
 		status: {
 			type: String,
-			enum: ['pending', 'accepted', 'rejected', 'cancelled', 'completed'],
-			default: 'pending',
+      enum: ORDER_STATUS_VALUES,
+      default: ORDER_STATUS.PENDING,
 		},
 		cancellationReason: {
 			type: String,
