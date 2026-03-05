@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import secLogo from "../../assets/sec-logo.svg";
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginForm() {
+    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     
@@ -10,6 +12,7 @@ export default function LoginForm() {
         // Handle login logic here
         console.log('Login attempt:', { email, password });
         // You can add API call here
+        navigate('/dashboard'); 
     };
 
     return (
