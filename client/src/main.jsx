@@ -7,6 +7,7 @@ import Verification from "./components/signup/verification";
 import ProfileSetup from "./components/signup/profileSetup";
 import Dashboard from "./pages/dashboard";
 import WatchList from "./pages/watchlist";
+import TransactionHistory from "./pages/TransactionHistory";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/signup/profileSetup" element={<ProfileSetup />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/watchlist" element={<WatchList />} />
+        <Route path="/transactions" element={<TransactionHistory />} />
     </Routes>
   </BrowserRouter>
 );
