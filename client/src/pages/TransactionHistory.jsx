@@ -1,6 +1,6 @@
 import Nav from "../components/nav";
 import ProfileSidebar from "../components/ProfileSidebar";
-import HistoryList from "../components/transactions/History";
+import HistoryList from "../components/transactions/history";
 import SafetyCard from "../components/SafetyCard";
 
 
