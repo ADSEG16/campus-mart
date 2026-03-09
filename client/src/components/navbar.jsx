@@ -1,20 +1,77 @@
 import { useState } from "react";
 import logo from "../assets/logo.svg";
 
-export default function Navbar() {
+export default function Navbar({ variant = "default" }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
     };
 
+    // Product detail page has different navigation
+    if (variant === "product") {
+        return (
+            <nav className="bg-white shadow-sm sticky top-0 z-50">
+                <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-16">
+                        {/* Logo and Brand */}
+                        <div className="shrink-0">
+                            <a href="/dashboard" className="flex items-center space-x-1">
+                                <img 
+                                    src={logo} 
+                                    alt="CampusMart Logo" 
+                                    className="h-10 w-10 sm:h-16 sm:w-16 object-contain mt-4" 
+                                />
+                                <p className="text-xl sm:text-2xl font-bold text-gray-800 hover:text-gray-600 transition-colors">
+                                    Campus<span className="text-[#137FEC]">Mart</span>
+                                </p>
+                            </a>
+                        </div>
+
+                        {/* Search Bar - Hidden on mobile */}
+                        <div className="hidden md:flex flex-1 max-w-2xl mx-8">
+                            <input
+                                type="text"
+                                placeholder="Search for books, dorm gear, electronics..."
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+
+                        {/* Right side navigation */}
+                        <div className="flex items-center space-x-4">
+                            <a 
+                                href="/dashboard" 
+                                className="hidden md:block text-gray-600 hover:text-gray-900 transition-colors font-medium"
+                            >
+                                Browse
+                            </a>
+                            <a 
+                                href="/safety" 
+                                className="hidden md:block text-gray-600 hover:text-gray-900 transition-colors font-medium"
+                            >
+                                Safety
+                            </a>
+                            <button className="hidden md:block px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                                + Post Item
+                            </button>
+                            <a href="/settings" className="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center">
+                                <span className="text-orange-600 font-semibold">👤</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        );
+    }
+
+    // Default navbar for other pages
     return (
         <nav className="bg-white shadow-sm sticky top-0 z-50">
             <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                    {/* Logo and Brand */}
                     <div className="shrink-0">
-                        <a href="/" className="flex items-center space-x-1">
+                        <a href="/dashboard" className="flex items-center space-x-1">
                             <img 
                                 src={logo} 
                                 alt="CampusMart Logo" 
@@ -29,16 +86,19 @@ export default function Navbar() {
                     {/* Desktop Navigation Links */}
                     <div className="hidden md:flex items-center space-x-6">
                         <a 
-                            href="/help" 
+                            href="/dashboard" 
                             className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium"
                         >
-                            Help Center
+                            Marketplace
                         </a>
                         <a 
-                            href="/safety" 
+                            href="/watchlist" 
                             className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium"
                         >
-                            Safety Guidelines
+                            My Deals
+                        </a>
+                        <a href="/settings" className="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center">
+                            <span className="text-orange-600 font-semibold">👤</span>
                         </a>
                     </div>
 
@@ -65,20 +125,26 @@ export default function Navbar() {
             <div className={`md:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
                 <div className="px-4 pt-2 pb-4 space-y-2 bg-white border-t border-gray-200">
                     <a 
-                        href="/help" 
+                        href="/dashboard" 
                         className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
                         onClick={toggleMenu}
                     >
-                        Help Center
+                        Marketplace
                     </a>
                     <a 
-                        href="/safety" 
+                        href="/watchlist" 
                         className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
                         onClick={toggleMenu}
                     >
-                        Safety Guidelines
+                        My Deals
                     </a>
-                    
+                    <a 
+                        href="/settings" 
+                        className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
+                        onClick={toggleMenu}
+                    >
+                        Settings
+                    </a>
                 </div>
             </div>
         </nav>

@@ -1,5 +1,6 @@
 import React from "react";
 import { Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const SafetyFirst = () => {
   return (
@@ -13,9 +14,9 @@ const SafetyFirst = () => {
         Always meet in <strong>Safe Zones</strong> and use our in-app chat for all communications.
       </p>
       
-      <div className=" text-blue-600 text-xs font-mono p-2 ">
+      <Link to="/safety" className="text-blue-600 text-xs font-mono p-2 hover:underline">
        VIEW SAFETY GUIDE {'->'} 
-      </div>
+      </Link>
     </div>
   );
 };

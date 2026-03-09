@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Heart, Clock, MessageCircle } from "lucide-react";
 
 const MyWatchlist = () => {
@@ -127,7 +128,12 @@ const MyWatchlist = () => {
                         <span className="text-xs text-green-600 font-medium">✓</span>
                       )}
                     </div>
-                    <span className="text-xs font-medium text-blue-600">DETAILS</span>
+                    <Link 
+                      to={`/product/${item.id}`}
+                      className="text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      DETAILS
+                    </Link>
                   </div>
                 </div>
 
