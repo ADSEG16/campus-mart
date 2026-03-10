@@ -7,6 +7,9 @@ const QuickStats = () => {
   const handleWatchlistClick = () => {
     navigate("/watchlist");
   }
+  const handleTransactionsClick = () => {
+    navigate("/transactions");
+  }
 
   return (
     <div className="bg-[#0F172A] rounded-2xl border border-gray-200 p-5 mt-6 w-80 shadow-sm">
@@ -50,7 +53,7 @@ const QuickStats = () => {
        
 
         {/* Transaction History */}
-        <button className="flex items-center justify-between w-full hover:bg-[#2a37569a] p-3 rounded-lg transition-colors group">
+        <button className="flex items-center justify-between w-full hover:bg-[#2a37569a] p-3 rounded-lg transition-colors group" onClick={handleTransactionsClick}>
           <div className="flex items-center space-x-3">
             <Clock className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
             <span className="text-sm text-white">Transaction History</span>
