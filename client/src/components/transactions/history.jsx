@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { 
   Download,
   Image as ImageIcon,
@@ -7,13 +6,17 @@ import {
   X,
   X as XIcon
 } from "lucide-react";
-import TransactionDetails from "./TransactonDetails";
+import TransactionDetails from "./TransactionDetails";
+import SellerRatingPopup from "../popup-rating";
+import ReceiptPopup from "../receipt-popup"; // Import the receipt popup
 
 const TransactionHistory = () => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("All Transactions");
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
+  const [showRatingPopup, setShowRatingPopup] = useState(false);
+  const [showReceiptPopup, setShowReceiptPopup] = useState(false); // New state for receipt popup
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   
   const tabs = ["All Transactions", "Purchases", "Sales"];
   
@@ -82,7 +85,49 @@ const TransactionHistory = () => {
 
   // Handle view receipt
   const handleViewReceipt = (transactionId) => {
-    navigate(`/receipt/${transactionId}`);
+    setSelectedTransactionId(transactionId);
+    setShowReceiptPopup(true);
+  };
+
+  // Handle closing receipt popup
+  const handleCloseReceipt = () => {
+    setShowReceiptPopup(false);
+    setSelectedTransactionId(null);
+  };
+
+  // Handle rating popup open
+  const handleRatingPopupOpen = (transaction) => {
+    setShowDetailsSheet(false);
+    if (transaction) {
+      setSelectedTransaction(transaction);
+      setShowRatingPopup(true);
+    }
+  };
+
+  // Handle closing rating popup
+  const handleCloseRatingPopup = () => {
+    setShowRatingPopup(false);
+    setSelectedTransaction(null);
+  };
+
+  // Handle submitting the review
+  const handleSubmitReview = (reviewData) => {
+    console.log("Review submitted:", reviewData);
+    setShowRatingPopup(false);
+    setSelectedTransaction(null);
+    alert("Thank you for your review!");
+  };
+
+  // Handle download receipt
+  const handleDownloadReceipt = () => {
+    console.log("Downloading receipt...");
+    // This will be triggered from the ReceiptPopup component
+  };
+
+  // Handle print receipt
+  const handlePrintReceipt = () => {
+    console.log("Printing receipt...");
+    // This will be triggered from the ReceiptPopup component
   };
 
   // Filter transactions based on active tab
@@ -94,7 +139,7 @@ const TransactionHistory = () => {
   });
 
   return (
-    <div className="max-w-7xl p-6">
+    <div className="max-w-7xl p-6 relative">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Transaction History</h1>
@@ -197,10 +242,10 @@ const TransactionHistory = () => {
         </div>
       )}
 
-      {/* Transaction Details Sheet Overlay - with translucent background */}
+      {/* Transaction Details Sheet Overlay */}
       {showDetailsSheet && selectedTransactionId && (
         <div 
-          className="fixed inset-0 bg-black-400 bg-opacity-10 z-50 transition-opacity backdrop-blur-sm"
+          className="fixed inset-0 z-40 transition-opacity backdrop-blur-sm"
           onClick={handleCloseSheet}
         >
           <div 
@@ -221,13 +266,33 @@ const TransactionHistory = () => {
             {/* Sheet Content */}
             <div className="p-6">
               <TransactionDetails 
-                transactionId={selectedTransactionId} 
-                onClose={handleCloseSheet}
+                transactionId={selectedTransactionId}
                 isSheet={true}
+                onRatingPopupOpen={handleRatingPopupOpen}
               />
             </div>
           </div>
         </div>
+      )}
+
+      {/* Rating Popup */}
+      {showRatingPopup && selectedTransaction && (
+        <SellerRatingPopup
+          sellerName={selectedTransaction.seller}
+          productName={selectedTransaction.title}
+          onClose={handleCloseRatingPopup}
+          onSubmit={handleSubmitReview}
+        />
+      )}
+
+      {/* Receipt Popup */}
+      {showReceiptPopup && selectedTransactionId && (
+        <ReceiptPopup
+          transactionId={selectedTransactionId}
+          onClose={handleCloseReceipt}
+          onDownload={handleDownloadReceipt}
+          onPrint={handlePrintReceipt}
+        />
       )}
     </div>
   );

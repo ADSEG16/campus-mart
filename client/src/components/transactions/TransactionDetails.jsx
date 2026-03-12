@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { 
-  Calendar,
   MapPin,
   Download,
   Star,
@@ -9,10 +9,18 @@ import {
   Check,
   X
 } from "lucide-react";
+import SellerRatingPopup from "../popup-rating";
+import ReceiptPopup from "../receipt-popup";
 
-const TransactionDetails = ({ transactionId, isSheet = false }) => {
+const TransactionDetails = ({ 
+  transactionId, 
+  isSheet = false,
+  onRatingPopupOpen // Prop to notify parent when rate seller is clicked
+}) => {
   const [transaction, setTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showRatingPopup, setShowRatingPopup] = useState(false);
+  const [showReceiptPopup, setShowReceiptPopup] = useState(false);
 
   // Mock data - In real app, fetch from API using the ID
   useEffect(() => {
@@ -109,11 +117,30 @@ const TransactionDetails = ({ transactionId, isSheet = false }) => {
   }, [transactionId]);
 
   const handleRateSeller = () => {
-    console.log("Rate seller clicked for transaction:", transactionId);
+    // If parent has callback, use it
+    if (onRatingPopupOpen && transaction) {
+      onRatingPopupOpen(transaction);
+    } else {
+      // Otherwise show popup locally
+      setShowRatingPopup(true);
+    }
+  };
+
+  const handleCloseRatingPopup = () => {
+    setShowRatingPopup(false);
+  };
+
+  const handleSubmitRating = (ratingData) => {
+    console.log("Rating submitted:", ratingData);
+    setShowRatingPopup(false);
   };
 
   const handleDownloadReceipt = () => {
-    console.log("Downloading receipt for transaction:", transactionId);
+    setShowReceiptPopup(true);
+  };
+
+  const handleCloseReceiptPopup = () => {
+    setShowReceiptPopup(false);
   };
 
   if (loading) {
@@ -145,78 +172,60 @@ const TransactionDetails = ({ transactionId, isSheet = false }) => {
         </div>
       )}
 
-      {/* Product Title and Status */}
-      {/* <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">{transaction.title}</h3>
-        <div className="flex items-center space-x-2 text-sm">
-          <span className="text-gray-500">{transaction.date}</span>
-          <span className="text-gray-400">-</span>
-          <span className={`font-medium ${transaction.cancelled ? 'text-red-500' : 'text-green-600'}`}>
-            {transaction.status}
-          </span>
-          <span className="text-gray-400">-</span>
-          <span className="text-gray-500">COD</span>
-        </div>
-      </div>
-
-      <hr className="border-gray-200 mb-6" /> */}
-
       {/* Transaction Details Grid */}
       <div className="flex flex-col gap-8">
-       {/* Left Column - Receipt Summary */}
-            <div className="md:col-span-1 border rounded-2xl border-gray-200 shadow-2xs p-6">
-           
-            
-            <div className="">
-                <div className="flex items-start space-x-4">
-                 {/* Product Image */}
-                <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                        <ImageIcon className="h-8 w-8 text-gray-400" />
-                </div>
+        {/* Left Column - Receipt Summary */}
+        <div className="md:col-span-1 border rounded-2xl border-gray-200 shadow-sm p-6">
+          <div className="">
+            <div className="flex items-start space-x-4">
+              {/* Product Image */}
+              <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                <ImageIcon className="h-8 w-8 text-gray-400" />
+              </div>
 
-                <div className=" p-2 ">
-                    {/* Product and Order ID */}
-                    <div className="mb-4">
-                         <h4 className="text-sm font-semibold text-blue-500 mb-1">RECEIPT SUMMARY</h4>
-                    <p className="font-bold text-2xl text-gray-900  text-wrap">{transaction.title}</p>
-                    <p className="text-sm text-gray-500">Order ID: {transaction.id}</p>
-                    </div>
-            </div>
+              <div className="p-2">
+                {/* Product and Order ID */}
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-blue-500 mb-1">RECEIPT SUMMARY</h4>
+                  <p className="font-bold text-2xl text-gray-900 text-wrap">{transaction.title}</p>
+                  <p className="text-sm text-gray-500">Order ID: {transaction.id}</p>
+                </div>
+              </div>
             </div>
 
-                <hr className="border-gray-200 mb-4" />
+            <hr className="border-gray-200 mb-4" />
 
-                {/* Transaction Details */}
-                <div className="space-y-3 ">
-                <div className="flex flex-row justify-between">
-                    <p className="text-md text-gray-500 mb-1">Transaction Date</p>
-                    <p className="text-md text-gray-600 font-semibold">{transaction.date} • {transaction.time}</p>
-                </div>
-                
-                <div className="flex flex-row justify-between">
-                    <p className="text-md text-gray-500 mb-1">Payment Method</p>
-                    <p className="text-md text-gray-600 font-semibold">{transaction.paymentMethod}</p>
-                </div>
-                
-                <div className="flex flex-row justify-between">
-                    <p className="text-md text-gray-500 mb-1">Seller</p>
-                    <p className="text-md text-gray-600 font-semibold">
-                    {transaction.seller} {transaction.sellerVerified ? '❤️' : ''}
-                    </p>
-                </div>
-                </div>
+            {/* Transaction Details */}
+            <div className="space-y-3">
+              <div className="flex flex-row justify-between">
+                <p className="text-md text-gray-500 mb-1">Transaction Date</p>
+                <p className="text-md text-gray-600 font-semibold">{transaction.date} • {transaction.time}</p>
+              </div>
+              
+              <div className="flex flex-row justify-between">
+                <p className="text-md text-gray-500 mb-1">Payment Method</p>
+                <p className="text-md text-gray-600 font-semibold">{transaction.paymentMethod}</p>
+              </div>
+              
+              <div className="flex flex-row justify-between">
+                <p className="text-md text-gray-500 mb-1">Seller</p>
+                <p className="text-md text-gray-600 font-semibold">
+                  {transaction.seller} {transaction.sellerVerified ? '✓' : ''}
+                </p>
+              </div>
+            </div>
 
-                    <hr className="border-gray-200 my-4" />
+            <hr className="border-gray-200 my-4" />
 
-                    {/* Final Price */}
-                    <div className="flex flex-row justify-between">
-                    <p className="text-md text-gray-500 mb-1">Final Price</p>
-                    <p className="text-2xl font-bold text-blue-500">{transaction.price}</p>
-                    </div>
-                </div>
-                </div>
+            {/* Final Price */}
+            <div className="flex flex-row justify-between">
+              <p className="text-md text-gray-500 mb-1">Final Price</p>
+              <p className="text-2xl font-bold text-blue-500">{transaction.price}</p>
+            </div>
+          </div>
+        </div>
 
-        {/* bottom Column - Transaction Progress */}
+        {/* Bottom Column - Transaction Progress */}
         <div className="md:col-span-2">
           <h4 className="text-sm font-semibold text-gray-500 mb-4">TRANSACTION PROGRESS</h4>
           
@@ -256,9 +265,9 @@ const TransactionDetails = ({ transactionId, isSheet = false }) => {
           </div>
 
           {/* Meeting Point */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg items-center justify-center flex flex-col">
-            <div className="flex items-center space-x-2">
-              <MapPin className="h-32 w-4 text-blue-600" />
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg flex flex-col items-center justify-center">
+            <div className="flex items-center space-x-2 mb-1">
+              <MapPin className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-semibold text-blue-600">Meeting Point</span>
             </div>
             <p className="text-sm text-gray-700 font-medium">{transaction.meetingPoint}</p>
@@ -285,6 +294,28 @@ const TransactionDetails = ({ transactionId, isSheet = false }) => {
           </div>
         </div>
       </div>
+
+      {/* Rating Popup - Rendered with Portal to ensure full-screen centering */}
+      {showRatingPopup && createPortal(
+        <SellerRatingPopup 
+          sellerName={transaction.seller}
+          productName={transaction.title}
+          onClose={handleCloseRatingPopup}
+          onSubmit={handleSubmitRating}
+        />,
+        document.body
+      )}
+
+      {/* Receipt Popup - Rendered with Portal to ensure full-screen centering */}
+      {showReceiptPopup && createPortal(
+        <ReceiptPopup 
+          transactionId={transactionId}
+          onClose={handleCloseReceiptPopup}
+          onDownload={() => console.log("Downloading receipt...")}
+          onPrint={() => window.print()}
+        />,
+        document.body
+      )}
     </div>
   );
 };

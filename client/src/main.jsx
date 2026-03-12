@@ -8,7 +8,8 @@ import ProfileSetup from "./components/signup/profileSetup";
 import Dashboard from "./pages/dashboard";
 import WatchList from "./pages/watchlist";
 import TransactionHistory from "./pages/TransactionHistory";
-import TransactionDetails from "./components/transactions/TransactonDetails";
+import TransactionDetails from "./components/transactions/TransactionDetails";
+import PostNewItem from "./components/item-form";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/watchlist" element={<WatchList />} />
         <Route path="/transactions" element={<TransactionHistory />} />
         <Route path="/transactions/:id" element={<TransactionDetails />} />
+        <Route path="/post-item" element={<PostNewItem />} />
     </Routes>
   </BrowserRouter>
 );
