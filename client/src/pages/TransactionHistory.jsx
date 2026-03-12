@@ -2,6 +2,7 @@ import Nav from "../components/nav";
 import ProfileSidebar from "../components/ProfileSidebar";
 import HistoryList from "../components/transactions/history";
 import SafetyCard from "../components/SafetyCard";
+import Footer from "../components/footer";
 
 
 export default function TransactionHistory() {
@@ -19,5 +20,6 @@ export default function TransactionHistory() {
                     <HistoryList />
                 </div>
             </div>
+            <Footer />
         </div>
             )}

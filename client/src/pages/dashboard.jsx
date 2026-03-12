@@ -5,6 +5,7 @@ import QuickStats from "../components/quickstats";
 import SafetyCard from "../components/SafetyCard";
 import PostCard from "../components/PostCard";
 import Header from "../components/dashboard/header";
+import Footer from "../components/footer";
 
 export default function Dashboard() {
     return(
@@ -25,6 +26,7 @@ export default function Dashboard() {
                     <SafetyCard />
                 </div>
             </div>
+            <Footer />
         </div>
     )
 }

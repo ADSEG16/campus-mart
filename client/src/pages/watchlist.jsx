@@ -5,6 +5,7 @@ import CTABanner from "../components/watchlist/CTABanner";
 import QuickStats from "../components/quickstats";
 import SafetyCard from "../components/SafetyCard";
 import ActiveChats from "../components/active-chats";
+import Footer from "../components/footer";
 
 
 export default function WatchListPage() {
@@ -24,6 +25,7 @@ export default function WatchListPage() {
                     <SafetyCard />
                 </div>
             </div>
+            <Footer />
         </div>
     )
 }
