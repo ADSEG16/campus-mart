@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, Clock, MessageCircle } from "lucide-react";
-import { useWatchlist } from "../../context/WatchlistContext";
+import { useWatchlist } from "../../context";
 
 const MyWatchlist = () => {
   const navigate = useNavigate();

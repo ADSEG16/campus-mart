@@ -1,8 +1,7 @@
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { ListingsProvider } from "./context/ListingsContext";
-import { WatchlistProvider } from "./context/WatchlistContext";
+import { ListingsProvider, WatchlistProvider } from "./context";
 import Login from "./pages/login";
 import Signup from "./pages/signup";
 import Verification from "./components/signup/verification";

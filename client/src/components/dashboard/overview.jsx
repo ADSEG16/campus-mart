@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MapPin, Heart, MessageCircle } from "lucide-react";
-import { useListings } from "../../context/ListingsContext";
-import { useWatchlist } from "../../context/WatchlistContext";
+import { useListings } from "../../context";
+import { useWatchlist } from "../../context";
 
 const MarketplaceDashboard = () => {
   const navigate = useNavigate();

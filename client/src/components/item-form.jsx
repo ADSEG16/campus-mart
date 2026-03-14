@@ -13,7 +13,7 @@ import {
   Info
 } from "lucide-react";
 import Nav from "./nav";
-import { useListings } from "../context/ListingsContext";
+import { useListings } from "../context";
 
 const PostNewItem = () => {
   const navigate = useNavigate();

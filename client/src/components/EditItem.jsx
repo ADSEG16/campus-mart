@@ -13,7 +13,7 @@ import {
   Save
 } from "lucide-react";
 import Nav from "./nav";
-import { useListings } from "../context/ListingsContext";
+import { useListings } from "../context";
 
 const EditItem = () => {
   const navigate = useNavigate();
@@ -51,7 +51,7 @@ const EditItem = () => {
     { label: "Fair", color: "orange" }
   ];
 
-  // Load existing listing data
+  // Load existing listing data - FIXED VERSION
   useEffect(() => {
     const listing = getListingById(parseInt(id));
     
@@ -63,28 +63,33 @@ const EditItem = () => {
                         listing.condition.slice(1).toLowerCase();
       }
 
-      setFormData({
-        title: listing.title || "",
-        category: listing.category || "",
-        price: listing.price ? listing.price.replace('GHC', '') : "",
-        condition: conditionValue,
-        description: listing.description || "",
-        meetingSpot: listing.meetingSpot || "verified",
-        subtitle: listing.subtitle || "",
-        conditionColor: listing.conditionColor || "green"
-      });
-      
-      // Handle existing photos
-      if (listing.image) {
-        setExistingPhotos([listing.image]);
-      }
-      
-      setLoading(false);
+      // Use a single update function to batch state updates
+      const initializeData = () => {
+        setFormData({
+          title: listing.title || "",
+          category: listing.category || "",
+          price: listing.price ? listing.price.replace('GHC', '').replace('$', '').trim() : "",
+          condition: conditionValue,
+          description: listing.description || "",
+          meetingSpot: listing.meetingSpot || "verified",
+          subtitle: listing.subtitle || "",
+          conditionColor: listing.conditionColor || "green"
+        });
+        
+        // Handle existing photos
+        if (listing.image) {
+          setExistingPhotos([listing.image]);
+        }
+        
+        setLoading(false);
+      };
+
+      initializeData();
     } else {
       // Item not found, redirect to my listings
       navigate("/my-listings");
     }
-  }, [id, getListingById, navigate]);
+  }, [id, getListingById, navigate]); // Removed setLoading from dependencies
 
   // Map condition to color
   const getConditionColor = (condition) => {

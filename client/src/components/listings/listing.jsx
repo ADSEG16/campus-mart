@@ -12,7 +12,7 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import MyListingsHeader from "./header";
-import { useListings } from "../../context/ListingsContext";
+import { useListings } from "../../context";
 import { useNavigate } from "react-router-dom";
 
 const MyListingsContent = () => {
