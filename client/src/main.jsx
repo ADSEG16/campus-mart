@@ -10,6 +10,7 @@ import WatchList from "./pages/watchlist";
 import TransactionHistory from "./pages/TransactionHistory";
 import TransactionDetails from "./components/transactions/TransactionDetails";
 import PostNewItem from "./components/item-form";
+import ListingPage from "./pages/MyListings";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/transactions" element={<TransactionHistory />} />
         <Route path="/transactions/:id" element={<TransactionDetails />} />
         <Route path="/post-item" element={<PostNewItem />} />
+        <Route path="/my-listings" element={<ListingPage />} />
     </Routes>
   </BrowserRouter>
 );
