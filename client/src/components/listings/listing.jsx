@@ -12,67 +12,23 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import MyListingsHeader from "./header";
+import { useListings } from "../../context/ListingsContext";
+import { useNavigate } from "react-router-dom";
 
 const MyListingsContent = () => {
   const [activeTab, setActiveTab] = useState("all");
+  const { listings, updateListingStatus, } = useListings(); //deleteListing 
+  const navigate = useNavigate();
 
   const tabs = [
-    { id: "all", label: "All Listings", count: 4 },
-    { id: "active", label: "Active", count: 2 },
-    { id: "sold", label: "Sold", count: 1 },
-    { id: "pending", label: "Pending", count: 1 }
-  ];
-
-  const allListings = [
-    {
-      id: 1,
-      title: "Noise Cancelling Headphones",
-      status: "active",
-      statusLabel: "ACTIVE",
-      views: 142,
-      inquiries: 3,
-      postedDate: "2 days ago",
-      price: "$45.00",
-      actions: ["edit", "deactivate"],
-      image: null
-    },
-    {
-      id: 2,
-      title: "Biology Vol.1. Textbook",
-      status: "sold",
-      // soldTo: "David L.",
-      paymentMethod: "COD",
-      soldDate: "Oct 08, 2024",
-      price: "$120.00",
-      actions: ["receipt", "relist"],
-      image: null
-    },
-    {
-      id: 3,
-      title: "Study Desk Lamp",
-      status: "pending",
-      meetingTime: "Today, 4:00 PM",
-      meetingLocation: "Library North",
-      price: "$15.00",
-      actions: ["chat", "mark-sold"],
-      image: null
-    },
-    {
-      id: 4,
-      title: "Dorm Mini Fridge",
-      status: "active",
-      statusLabel: "ACTIVE",
-      views: 89,
-      inquiries: 0,
-      postedDate: "5 days ago",
-      price: "$85.00",
-      actions: ["edit", "deactivate"],
-      image: null
-    }
+    { id: "all", label: "All Listings", count: listings.length },
+    { id: "active", label: "Active", count: listings.filter(l => l.status === "active").length },
+    { id: "sold", label: "Sold", count: listings.filter(l => l.status === "sold").length },
+    { id: "pending", label: "Pending", count: listings.filter(l => l.status === "pending").length }
   ];
 
   // Filter listings based on active tab
-  const filteredListings = allListings.filter(listing => {
+  const filteredListings = listings.filter(listing => {
     if (activeTab === "all") return true;
     return listing.status === activeTab;
   });
@@ -88,7 +44,7 @@ const MyListingsContent = () => {
       case "sold":
         return (
           <span className="text-gray-600 bg-gray-200 rounded-2xl px-2 py-0.5">
-            Sold (COD)
+            {listing.soldTo ? `Sold to ${listing.soldTo} (COD)` : "Sold (COD)"}
           </span>
         );
       case "pending":
@@ -102,48 +58,63 @@ const MyListingsContent = () => {
     }
   };
 
+  const handleAction = (action, listing) => {
+    switch(action) {
+    case "edit":
+      navigate(`/edit-item/${listing.id}`); // Navigate to edit page
+      break;
+      case "deactivate":
+        updateListingStatus(listing.id, "inactive");
+        break;
+      case "receipt":
+        console.log("View receipt:", listing.id);
+        break;
+      case "relist":
+        updateListingStatus(listing.id, "active");
+        break;
+      case "chat":
+        console.log("Open chat:", listing.id);
+        break;
+      case "mark-sold":
+        updateListingStatus(listing.id, "sold", {
+          soldTo: "Buyer",
+          soldDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
   const renderActions = (listing) => {
     return listing.actions.map((action, index) => {
-      switch(action) {
-        case "edit":
-          return (
-            <button key={index} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-              Edit
-            </button>
-          );
-        case "deactivate":
-          return (
-            <button key={index} className="text-gray-600 hover:text-gray-900 font-medium text-sm">
-              Deactivate
-            </button>
-          );
-        case "receipt":
-          return (
-            <button key={index} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-              View Receipt
-            </button>
-          );
-        case "relist":
-          return (
-            <button key={index} className="text-gray-600 hover:text-gray-900 font-medium text-sm">
-              Relist
-            </button>
-          );
-        case "chat":
-          return (
-            <button key={index} className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-              Chat
-            </button>
-          );
-        case "mark-sold":
-          return (
-            <button key={index} className="text-green-600 hover:text-green-700 font-medium text-sm">
-              Mark Sold
-            </button>
-          );
-        default:
-          return null;
-      }
+      const actionLabels = {
+        edit: "Edit",
+        deactivate: "Deactivate",
+        receipt: "View Receipt",
+        relist: "Relist",
+        chat: "Chat",
+        "mark-sold": "Mark Sold"
+      };
+
+      const actionColors = {
+        edit: "text-blue-600 hover:text-blue-700",
+        deactivate: "text-gray-600 hover:text-gray-900",
+        receipt: "text-blue-600 hover:text-blue-700",
+        relist: "text-gray-600 hover:text-gray-900",
+        chat: "text-blue-600 hover:text-blue-700",
+        "mark-sold": "text-green-600 hover:text-green-700"
+      };
+
+      return (
+        <button
+          key={index}
+          onClick={() => handleAction(action, listing)}
+          className={`${actionColors[action]} font-medium text-sm`}
+        >
+          {actionLabels[action]}
+        </button>
+      );
     });
   };
 
@@ -226,17 +197,20 @@ const MyListingsContent = () => {
               <div className="flex items-start space-x-4">
                 {/* Product Image */}
                 <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                  <ImageIcon className="h-8 w-8 text-gray-400" />
+                  {listing.image ? (
+                    <img src={listing.image} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-gray-400" />
+                  )}
                 </div>
 
                 {/* Listing Details */}
                 <div className="flex-1">
                   {/* Top row with title and price */}
                   <div className="flex justify-between items-start mb-2">
-                    <div className="flex flex-row gap-3">
-                    <h3 className="font-medium text-gray-900">{listing.title}</h3>
-                    {/* Middle row with status and metrics */}
-                    <span className="text-gray-500">{getStatusDisplay(listing)}</span>
+                    <div className="flex flex-row gap-3 items-center">
+                      <h3 className="font-medium text-gray-900">{listing.title}</h3>
+                      <span className="text-gray-500">{getStatusDisplay(listing)}</span>
                     </div>
                     <div className="text-lg font-bold text-gray-900">
                       {listing.price}

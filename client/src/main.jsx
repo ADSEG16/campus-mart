@@ -1,6 +1,8 @@
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { ListingsProvider } from "./context/ListingsContext";
+import { WatchlistProvider } from "./context/WatchlistContext";
 import Login from "./pages/login";
 import Signup from "./pages/signup";
 import Verification from "./components/signup/verification";
@@ -11,12 +13,15 @@ import TransactionHistory from "./pages/TransactionHistory";
 import TransactionDetails from "./components/transactions/TransactionDetails";
 import PostNewItem from "./components/item-form";
 import ListingPage from "./pages/MyListings";
+import EditItem from "./components/EditItem";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
-    <Routes>
-       <Route path="/" element={<Login />} />
-       <Route path="/signup" element={<Signup />} />
+    <ListingsProvider>
+      <WatchlistProvider>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/signup/verification" element={<Verification />} />
         <Route path="/signup/profileSetup" element={<ProfileSetup />} />
         <Route path="/dashboard" element={<Dashboard />} />
@@ -25,6 +30,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/transactions/:id" element={<TransactionDetails />} />
         <Route path="/post-item" element={<PostNewItem />} />
         <Route path="/my-listings" element={<ListingPage />} />
-    </Routes>
+        <Route path="/edit-item/:id" element={<EditItem />} />
+      </Routes>
+      </WatchlistProvider>
+    </ListingsProvider>
   </BrowserRouter>
 );
