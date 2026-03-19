@@ -1,24 +1,27 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Upload,
   Camera,
-  Image as ImageIcon,
   X,
   ChevronDown,
   DollarSign,
   MapPin,
   Shield,
   AlertCircle,
-  Info
+  Info,
+  Save
 } from "lucide-react";
 import Nav from "./nav";
 import { useListings } from "../context";
 
-const PostNewItem = () => {
+const EditItem = () => {
   const navigate = useNavigate();
-  const { addListing } = useListings();
+  const { id } = useParams();
+  const { getListingById, updateListing, updateListingStatus } = useListings();
+  
   const [photos, setPhotos] = useState([]);
+  const [existingPhotos, setExistingPhotos] = useState([]);
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -29,6 +32,7 @@ const PostNewItem = () => {
     subtitle: "",
     conditionColor: "green"
   });
+  const [loading, setLoading] = useState(true);
 
   const categories = [
     "Textbooks",
@@ -47,6 +51,46 @@ const PostNewItem = () => {
     { label: "Fair", color: "orange" }
   ];
 
+  // Load existing listing data - FIXED VERSION
+  useEffect(() => {
+    const listing = getListingById(parseInt(id));
+    
+    if (listing) {
+      // Safely format condition string
+      let conditionValue = "";
+      if (listing.condition) {
+        conditionValue = listing.condition.charAt(0).toUpperCase() + 
+                        listing.condition.slice(1).toLowerCase();
+      }
+
+      // Use a single update function to batch state updates
+      const initializeData = () => {
+        setFormData({
+          title: listing.title || "",
+          category: listing.category || "",
+          price: listing.price ? listing.price.replace('GHC', '').replace('$', '').trim() : "",
+          condition: conditionValue,
+          description: listing.description || "",
+          meetingSpot: listing.meetingSpot || "verified",
+          subtitle: listing.subtitle || "",
+          conditionColor: listing.conditionColor || "green"
+        });
+        
+        // Handle existing photos
+        if (listing.image) {
+          setExistingPhotos([listing.image]);
+        }
+        
+        setLoading(false);
+      };
+
+      initializeData();
+    } else {
+      // Item not found, redirect to my listings
+      navigate("/my-listings");
+    }
+  }, [id, getListingById, navigate]); // Removed setLoading from dependencies
+
   // Map condition to color
   const getConditionColor = (condition) => {
     const map = {
@@ -60,15 +104,18 @@ const PostNewItem = () => {
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
-    if (photos.length + files.length <= 5) {
+    if (photos.length + existingPhotos.length + files.length <= 5) {
       const newPhotos = files.map(file => URL.createObjectURL(file));
       setPhotos([...photos, ...newPhotos]);
     }
   };
 
-  const removePhoto = (index) => {
-    const newPhotos = photos.filter((_, i) => i !== index);
-    setPhotos(newPhotos);
+  const removePhoto = (index, isExisting = false) => {
+    if (isExisting) {
+      setExistingPhotos(existingPhotos.filter((_, i) => i !== index));
+    } else {
+      setPhotos(photos.filter((_, i) => i !== index));
+    }
   };
 
   const handleInputChange = (e) => {
@@ -79,44 +126,81 @@ const PostNewItem = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Create new listing object
-    const newListing = {
+    // Update listing object
+    const updatedListing = {
       title: formData.title,
       subtitle: formData.subtitle || "New listing",
       description: formData.description,
-      price: `GHC${parseFloat(formData.price).toFixed(0)}`,
-      condition: formData.condition.toUpperCase(),
+      price: formData.price ? `GHC ${parseFloat(formData.price).toFixed(0)}` : "GHC 0",
+      condition: formData.condition ? formData.condition.toUpperCase() : "NEW",
       conditionColor: getConditionColor(formData.condition),
       category: formData.category,
-      image: photos.length > 0 ? photos[0] : null,
+      image: photos.length > 0 ? photos[0] : (existingPhotos.length > 0 ? existingPhotos[0] : null),
       meetingSpot: formData.meetingSpot,
-      soldTo: null,
-      soldDate: null,
-      meetingTime: null,
       meetingLocation: formData.meetingSpot === "verified" 
         ? "Student Union / Library" 
         : "Custom campus spot (to be arranged)"
     };
 
-    // Add to context
-    addListing(newListing);
+    // Update in context
+    updateListing(parseInt(id), updatedListing);
     
-    console.log("Item posted:", newListing);
+    console.log("Item updated:", updatedListing);
     
-    // Navigate to My Listings page to see the new item
+    // Navigate back to My Listings
     navigate("/my-listings");
   };
+
+  const handleMarkAsSold = () => {
+    updateListingStatus(parseInt(id), "sold", {
+      soldTo: "Buyer",
+      soldDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    });
+    navigate("/my-listings");
+  };
+
+  const handleDeactivate = () => {
+    updateListingStatus(parseInt(id), "inactive");
+    navigate("/my-listings");
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <Nav />
+        <div className="max-w-4xl mx-auto p-6 mt-8 flex justify-center">
+          <div className="text-gray-500">Loading listing data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <Nav />
       <div className="max-w-4xl mx-auto p-6 mt-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Post New Item</h1>
-          <p className="text-gray-600">
-            Sell your items quickly and safely to fellow students on campus.
-          </p>
+        {/* Header with actions */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Item</h1>
+            <p className="text-gray-600">
+              Update your listing details below.
+            </p>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={handleMarkAsSold}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+            >
+              Mark as Sold
+            </button>
+            <button
+              onClick={handleDeactivate}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            >
+              Deactivate
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -124,44 +208,70 @@ const PostNewItem = () => {
           <div className="border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Photos</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Upload up to 5 clear photos of your item. Items with better lighting sell 3x faster.
+              Update photos of your item (max 5).
             </p>
 
             {/* Photo Upload Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-              {/* Upload Button */}
-              <label className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-                <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-blue-600">ADD PHOTO</span>
-              </label>
-
-              {/* Photo Previews */}
-              {photos.map((photo, index) => (
-                <div key={index} className="aspect-square relative group">
+              {/* Existing Photos */}
+              {existingPhotos.map((photo, index) => (
+                <div key={`existing-${index}`} className="aspect-square relative group">
                   <img
                     src={photo}
-                    alt={`Upload ${index + 1}`}
+                    alt={`Existing ${index + 1}`}
                     className="w-full h-full object-cover rounded-lg"
                   />
                   <button
                     type="button"
-                    onClick={() => removePhoto(index)}
+                    onClick={() => removePhoto(index, true)}
                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <X className="h-4 w-4" />
                   </button>
+                  <div className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-1 rounded">
+                    Current
+                  </div>
                 </div>
               ))}
 
+              {/* New Photos */}
+              {photos.map((photo, index) => (
+                <div key={`new-${index}`} className="aspect-square relative group">
+                  <img
+                    src={photo}
+                    alt={`New ${index + 1}`}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(index, false)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-1 rounded">
+                    New
+                  </div>
+                </div>
+              ))}
+
+              {/* Upload Button (if less than 5 total) */}
+              {photos.length + existingPhotos.length < 5 && (
+                <label className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                  <span className="text-sm font-medium text-blue-600">ADD PHOTO</span>
+                </label>
+              )}
+
               {/* Empty slots indicator */}
-              {Array.from({ length: Math.max(0, 5 - photos.length - 1) }).map((_, i) => (
+              {Array.from({ length: Math.max(0, 5 - photos.length - existingPhotos.length - 1) }).map((_, i) => (
                 <div
                   key={`empty-${i}`}
                   className="aspect-square border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center"
@@ -171,7 +281,7 @@ const PostNewItem = () => {
               ))}
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              {photos.length}/5 photos uploaded
+              {existingPhotos.length + photos.length}/5 photos
             </p>
           </div>
 
@@ -190,13 +300,12 @@ const PostNewItem = () => {
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="e.g. TI-84 Graphing Calculator - Like New"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
 
-              {/* Subtitle (optional) */}
+              {/* Subtitle */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Subtitle (Optional)
@@ -206,7 +315,6 @@ const PostNewItem = () => {
                   name="subtitle"
                   value={formData.subtitle}
                   onChange={handleInputChange}
-                  placeholder="e.g. Latest edition, includes accessories"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -245,7 +353,6 @@ const PostNewItem = () => {
                       name="price"
                       value={formData.price}
                       onChange={handleInputChange}
-                      placeholder="0.00"
                       min="0"
                       step="0.01"
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -288,7 +395,6 @@ const PostNewItem = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows="4"
-                  placeholder="Describe the item, including its condition, any flaws, and what's included..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -315,7 +421,6 @@ const PostNewItem = () => {
                       checked={formData.meetingSpot === "verified"}
                       onChange={handleInputChange}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                      required
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex items-center">
@@ -334,7 +439,6 @@ const PostNewItem = () => {
                       checked={formData.meetingSpot === "custom"}
                       onChange={handleInputChange}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                      required
                     />
                     <div className="ml-3 flex-1">
                       <div className="flex items-center">
@@ -369,7 +473,7 @@ const PostNewItem = () => {
             <span>Your contact info is hidden until you accept a deal.</span>
           </div>
 
-          {/* Submit Button */}
+          {/* Action Buttons */}
           <div className="flex justify-end space-x-4 pt-4">
             <button
               type="button"
@@ -380,9 +484,10 @@ const PostNewItem = () => {
             </button>
             <button
               type="submit"
-              className="px-9 py-2 bg-blue-600 text-white rounded-3xl hover:bg-blue-700 transition-colors"
+              className="px-9 py-2 bg-blue-600 text-white rounded-3xl hover:bg-blue-700 transition-colors flex items-center space-x-2"
             >
-              Post Item
+              <Save className="h-4 w-4" />
+              <span>Save Changes</span>
             </button>
           </div>
         </form>
@@ -391,4 +496,4 @@ const PostNewItem = () => {
   );
 };
 
-export default PostNewItem;
+export default EditItem;

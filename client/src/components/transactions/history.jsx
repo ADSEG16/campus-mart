@@ -28,7 +28,7 @@ const TransactionHistory = () => {
       seller: "Sarah M.",
       verified: true,
       status: "Completed - COD",
-      amount: "$45.00",
+      amount: "GHC45.00",
       cancelled: false,
       type: "purchase",
       image: null
@@ -40,7 +40,7 @@ const TransactionHistory = () => {
       seller: "David L.",
       verified: true,
       status: "Completed - COD",
-      amount: "$120.00",
+      amount: "GHC120.00",
       cancelled: false,
       type: "purchase",
       image: null
@@ -52,7 +52,7 @@ const TransactionHistory = () => {
       seller: "Ryan K.",
       verified: false,
       status: "Cancelled",
-      amount: "$15.00",
+      amount: "GHC15.00",
       cancelled: true,
       type: "sale",
       image: null
@@ -64,7 +64,7 @@ const TransactionHistory = () => {
       seller: "Jordan W.",
       verified: false,
       status: "Completed - COD",
-      amount: "$85.00",
+      amount: "GHC85.00",
       cancelled: false,
       type: "purchase",
       image: null
