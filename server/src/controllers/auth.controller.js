@@ -195,31 +195,6 @@ const uploadStudentId = async (req, res, next) => {
   }
 };
 
-// const uploadProfileImage = async (req, res, next) => {
-// 	try {
-// 		if (!req.file) {
-// 			return res.status(400).json({ message: 'Profile image file is required' });
-// 		}
-
-// 		const uploaded = await uploadSingleProfileImage(req.file);
-// 		req.user.profileImageUrl = uploaded.secureUrl;
-// 		await req.user.save();
-
-// 		return res.status(200).json({
-// 			success: true,
-// 			message: 'Profile image uploaded successfully',
-// 			data: {
-// 				profileImageUrl: req.user.profileImageUrl,
-// 			},
-// 		});
-// 	} catch (error) {
-//   console.error("UPLOAD ERROR:", error); // 👈 logs full error in terminal
-//   res.status(500).json({
-//     message: "Image upload failed",
-//     error: error.message,
-//   });
-// }
-// };
 
 const completeProfile = async (req, res, next) => {
 	try {
