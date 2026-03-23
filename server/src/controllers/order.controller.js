@@ -4,7 +4,7 @@ const {
   ORDER_STATUS,
   ORDER_ALLOWED_TRANSITIONS,
   ORDER_STATUS_VALUES,
-} = require('../constants/OrderStatus');
+} = require('../constants/orderStatus');
 
 const LEGACY_STATUS_MAP = Object.freeze({
   pending: ORDER_STATUS.PENDING,

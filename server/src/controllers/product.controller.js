@@ -4,7 +4,7 @@ const { uploadManyImages } = require('../services/product.service');
 // Create a new product
 const createProduct = async (req, res, next) => {
   try {
-    const { title, description, category, condition, price, availabilityStatus, stock, meetingSpot } = req.body;
+    const { title, description, category, condition, price, availabilityStatus, stock, images, meetingSpot } = req.body;
 
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });

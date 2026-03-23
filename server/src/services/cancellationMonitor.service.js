@@ -1,6 +1,6 @@
 const Order = require('../models/order.model');
 const User = require('../models/user.model');
-const { ORDER_STATUS } = require('../constants/OrderStatus');
+const { ORDER_STATUS } = require('../constants/orderStatus');
 
 const DEFAULT_CANCELLATION_THRESHOLD = 3;
 const WINDOW_HOURS = 24;

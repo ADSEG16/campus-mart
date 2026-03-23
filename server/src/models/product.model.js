@@ -21,7 +21,6 @@ const productSchema = new mongoose.Schema(
     },
 
     condition: {
-      // the used or new condition of the product
       type: String,
       enum: ['New', 'Like New', 'Good', 'Fair'],
       required: true,
@@ -57,10 +56,17 @@ const productSchema = new mongoose.Schema(
       min: 0,
     },
 
-    images: {
-      type: [String],
-      default: [],
-    },
+    images: [
+      {
+        url: {
+          type: String,
+          required: true,
+        },
+        publicId: {
+          type: String,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
