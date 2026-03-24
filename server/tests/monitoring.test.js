@@ -16,9 +16,7 @@ describe('Order monitoring and admin flagged users endpoints', () => {
   });
 
   it('blocks non-admin users from viewing flagged users', async () => {
-    User.findById.mockReturnValue({
-      select: jest.fn().mockResolvedValue({ _id: 'user-1', role: 'user', flagged: false }),
-    });
+    User.findById.mockResolvedValue({ _id: 'user-1', role: 'user', flagged: false });
 
     const response = await request(app)
       .get('/api/admin/flagged-users')
@@ -29,9 +27,7 @@ describe('Order monitoring and admin flagged users endpoints', () => {
   });
 
   it('returns flagged users for admin', async () => {
-    User.findById.mockReturnValue({
-      select: jest.fn().mockResolvedValue({ _id: 'admin-1', role: 'admin', flagged: false }),
-    });
+    User.findById.mockResolvedValue({ _id: 'admin-1', role: 'admin', flagged: false });
 
     const flaggedUsers = [{ _id: 'u1', email: 'u1@example.com', role: 'user', flagged: true }];
 
@@ -51,9 +47,7 @@ describe('Order monitoring and admin flagged users endpoints', () => {
   });
 
   it('monitors cancellations when a buyer cancels an order', async () => {
-    User.findById.mockReturnValue({
-      select: jest.fn().mockResolvedValue({ _id: 'buyer-1', role: 'user', flagged: false }),
-    });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', flagged: false });
 
     const save = jest.fn().mockResolvedValue(undefined);
     Order.findById.mockResolvedValue({
