@@ -1,4 +1,5 @@
 const Product = require('../models/product.model');
+const { uploadManyImages } = require('../services/product.service');
 
 // Create a new product
 const createProduct = async (req, res, next) => {
@@ -9,6 +10,9 @@ const createProduct = async (req, res, next) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
+    const uploadedImages = await uploadManyImages(req.files);
+    const imageUrls = uploadedImages.map((image) => image.secureUrl);
+
     const product = new Product({
       title,
       description,
@@ -18,7 +22,7 @@ const createProduct = async (req, res, next) => {
       sellerId: req.user._id,
       availabilityStatus,
       stock,
-      images,
+      images: imageUrls,
       meetingSpot,
     });
 
@@ -119,7 +123,10 @@ const updateProduct = async (req, res, next) => {
       return res.status(403).json({ message: 'You do not have permission to update this product' });
     }
 
-    const { title, description, category, condition, price, availabilityStatus, stock, images, meetingSpot } = req.body;
+    const { title, description, category, condition, price, availabilityStatus, stock, meetingSpot } = req.body;
+
+    const uploadedImages = await uploadManyImages(req.files);
+    const imageUrls = uploadedImages.map((image) => image.secureUrl);
 
     if (title !== undefined) product.title = title;
     if (description !== undefined) product.description = description;
@@ -128,7 +135,7 @@ const updateProduct = async (req, res, next) => {
     if (price !== undefined) product.price = price;
     if (availabilityStatus !== undefined) product.availabilityStatus = availabilityStatus;
     if (stock !== undefined) product.stock = stock;
-    if (images !== undefined) product.images = images;
+    if (imageUrls.length > 0) product.images = imageUrls;
     if (meetingSpot !== undefined) product.meetingSpot = meetingSpot;
 
     await product.save();

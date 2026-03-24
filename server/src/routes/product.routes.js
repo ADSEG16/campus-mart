@@ -1,5 +1,6 @@
 const express = require('express');
-const { requireUser, requireAdmin } = require('../middleware/auth.middleware');
+const { requireUser } = require('../middleware/auth.middleware');
+const { productImagesUpload } = require('../config/multer');
 const {
   createProduct,
   getAllProducts,
@@ -13,12 +14,12 @@ const router = express.Router();
 
 // Public routes
 router.get('/', getAllProducts);
-router.get('/:productId', getProductById);
 router.get('/seller/:sellerId', getProductsBySeller);
+router.get('/:productId', getProductById);
 
 // Protected routes (seller/admin only)
-router.post('/', requireUser, createProduct);
-router.patch('/:productId', requireUser, updateProduct);
+router.post('/', requireUser, productImagesUpload.array('images', 5), createProduct);
+router.patch('/:productId', requireUser, productImagesUpload.array('images', 5), updateProduct);
 router.delete('/:productId', requireUser, deleteProduct);
 
 module.exports = router;

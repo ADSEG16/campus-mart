@@ -1,14 +1,23 @@
 const User = require('../models/user.model');
+const jwt = require('jsonwebtoken');
 
 const requireUser = async (req, res, next) => {
 	try {
-		const userId = req.header('x-user-id');
+		const authHeader = req.header('Authorization');
+		const fallbackUserId = req.header('x-user-id');
+		let userId = fallbackUserId;
+
+		if (authHeader && authHeader.startsWith('Bearer ')) {
+			const token = authHeader.replace('Bearer ', '').trim();
+			const decoded = jwt.verify(token, process.env.JWT_SECRET);
+			userId = decoded.id;
+		}
 
 		if (!userId) {
 			return res.status(401).json({ message: 'Authentication required' });
 		}
 
-		const user = await User.findById(userId).select('_id role flagged');
+		const user = await User.findById(userId);
 
 		if (!user) {
 			return res.status(401).json({ message: 'Invalid user' });

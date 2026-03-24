@@ -1,8 +1,24 @@
-const express = require("express");
+const express = require('express');
+const {
+	signup,
+	login,
+	getMe,
+	uploadStudentId,
+	uploadProfileImage,
+	completeProfile,
+} = require('../controllers/auth.controller');
+const { requireUser } = require('../middleware/auth.middleware');
+const { profileImageUpload, studentIdUpload } = require('../config/multer');
+
 const router = express.Router();
 
-const { loginUser } = require("../controllers/auth.controller");
+router.post('/signup', signup);
+router.post('/login', login);
 
-router.post("/login", loginUser);
+router.get('/me', requireUser, getMe);
+router.post('/upload-student-id', requireUser, studentIdUpload.single('studentId'), uploadStudentId);
+router.post('/upload-profile-image', requireUser, profileImageUpload.single('profileImage'), uploadProfileImage);
+router.patch('/complete-profile', requireUser, completeProfile);
 
 module.exports = router;
+
