@@ -34,9 +34,7 @@ const uploadAvatar = async (req, res, next) => {
     }
 };
 
-router.post('/avatar', requireUser, profileImageUpload.single('profileImage'), uploadAvatar);
-
-router.get('/profile', requireUser, async (req, res, next) => {
+const getCurrentUserProfile = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);
 
@@ -51,6 +49,38 @@ router.get('/profile', requireUser, async (req, res, next) => {
     } catch (error) {
         return next(error);
     }
-});
+};
+
+const updateCurrentUserProfile = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return sendError(res, { statusCode: 404, message: 'User not found' });
+        }
+
+        const updatableFields = ['fullName', 'department', 'graduationYear', 'bio'];
+
+        updatableFields.forEach((field) => {
+            if (req.body[field] !== undefined) {
+                user[field] = req.body[field];
+            }
+        });
+
+        await user.save();
+
+        return sendSuccess(res, {
+            message: 'User profile updated successfully',
+            data: User.sanitizeUser(user),
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+router.post('/avatar', requireUser, profileImageUpload.single('profileImage'), uploadAvatar);
+router.get('/profile', requireUser, getCurrentUserProfile);
+router.get('/me', requireUser, getCurrentUserProfile);
+router.patch('/profile', requireUser, updateCurrentUserProfile);
 
 module.exports = router;

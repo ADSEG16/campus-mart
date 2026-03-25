@@ -1,5 +1,5 @@
 const User = require('../models/user.model');
-const { sendSuccess } = require('../utils/response');
+const { sendSuccess, sendError } = require('../utils/response');
 
 const getFlaggedUsers = async (req, res, next) => {
   try {
@@ -28,6 +28,59 @@ const getFlaggedUsers = async (req, res, next) => {
   }
 };
 
+const approveUserVerification = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return sendError(res, { statusCode: 404, message: 'User not found' });
+    }
+
+    if (!user.studentIdUrl) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'User has not uploaded a student ID document',
+      });
+    }
+
+    user.verificationStatus = 'verified';
+    user.isVerified = true;
+    await user.save();
+
+    return sendSuccess(res, {
+      message: 'User verification approved successfully',
+      data: User.sanitizeUser(user),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const rejectUserVerification = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return sendError(res, { statusCode: 404, message: 'User not found' });
+    }
+
+    user.verificationStatus = 'rejected';
+    user.isVerified = false;
+    await user.save();
+
+    return sendSuccess(res, {
+      message: 'User verification rejected successfully',
+      data: User.sanitizeUser(user),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getFlaggedUsers,
+  approveUserVerification,
+  rejectUserVerification,
 };
