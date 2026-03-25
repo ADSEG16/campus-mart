@@ -1,6 +1,6 @@
 const Order = require('../models/order.model');
 const User = require('../models/user.model');
-const { ORDER_STATUS } = require('../constants/orderStatus');
+const { ORDER_STATUS } = require('../constants/order.status');
 
 const DEFAULT_CANCELLATION_THRESHOLD = 3;
 const WINDOW_HOURS = 24;
@@ -18,7 +18,10 @@ const monitorUserCancellationBehavior = async (userId) => {
   const windowStart = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000);
 
   const cancellationCount = await Order.countDocuments({
-    buyerId: userId,
+    $or: [
+      { cancelledBy: userId },
+      { cancelledBy: null, buyerId: userId },
+    ],
     status: { $in: [ORDER_STATUS.CANCELLED, 'cancelled'] },
     updatedAt: { $gte: windowStart },
   });

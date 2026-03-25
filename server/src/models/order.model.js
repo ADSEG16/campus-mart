@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { ORDER_STATUS, ORDER_STATUS_VALUES } = require('../constants/orderStatus');
+const { ORDER_STATUS, ORDER_STATUS_VALUES } = require('../constants/order.status');
 
 const orderItemSchema = new mongoose.Schema(
   {
@@ -58,6 +58,11 @@ const orderSchema = new mongoose.Schema(
 			default: null,
 			trim: true,
 		},
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     buyerConfirmed: {
 			type: Boolean,
 			default: false,

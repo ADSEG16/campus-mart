@@ -1,5 +1,6 @@
 const User = require('../models/user.model');
 const jwt = require('jsonwebtoken');
+const { sendError } = require('../utils/response');
 
 const requireUser = async (req, res, next) => {
 	try {
@@ -14,13 +15,13 @@ const requireUser = async (req, res, next) => {
 		}
 
 		if (!userId) {
-			return res.status(401).json({ message: 'Authentication required' });
+			return sendError(res, { statusCode: 401, message: 'Authentication required' });
 		}
 
 		const user = await User.findById(userId);
 
 		if (!user) {
-			return res.status(401).json({ message: 'Invalid user' });
+			return sendError(res, { statusCode: 401, message: 'Invalid user' });
 		}
 
 		req.user = user;
@@ -32,7 +33,7 @@ const requireUser = async (req, res, next) => {
 
 const requireAdmin = (req, res, next) => {
 	if (!req.user || req.user.role !== 'admin') {
-		return res.status(403).json({ message: 'Admin access required' });
+		return sendError(res, { statusCode: 403, message: 'Admin access required' });
 	}
 
 	return next();
