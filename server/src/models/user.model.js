@@ -17,6 +17,7 @@ const sanitizeUserDocument = (userDoc) => {
 		studentIdUrl: user.studentIdUrl,
 		profileImageUrl: user.profileImageUrl,
 		bio: user.bio,
+		trustScore: user.trustScore,
 		flagged: user.flagged,
 		createdAt: user.createdAt,
 		updatedAt: user.updatedAt,
@@ -84,6 +85,12 @@ const userSchema = new mongoose.Schema(
 			default: '',
 			maxlength: 200,
 			trim: true,
+		},
+		trustScore: {
+			type: Number,
+			default: 50,
+			min: 0,
+			max: 100,
 		},
 		profileImageUrl: {
 			type: String, // Cloudinary URL will be stored here

@@ -1,6 +1,10 @@
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const { monitorUserCancellationBehavior } = require('../services/cancellationMonitor.service');
+const {
+  applySuccessfulDeliveryTrustScore,
+  applyCancellationTrustScore,
+} = require('../services/trustScore.service');
 const { sendSuccess, sendError } = require('../utils/response');
 const {
   ORDER_STATUS,
@@ -236,13 +240,22 @@ const updateOrderStatus = async (req, res, next) => {
 
     if (normalizedNextStatus === ORDER_STATUS.CANCELLED) {
       order.cancellationReason = cancellationReason || order.cancellationReason;
+      order.cancelledBy = req.user._id;
+    } else {
+      order.cancelledBy = null;
     }
 
     await order.save();
 
+    let trustScoreUpdate;
+    if (normalizedNextStatus === ORDER_STATUS.DELIVERED) {
+      trustScoreUpdate = await applySuccessfulDeliveryTrustScore(order);
+    }
+
     let monitoring;
     if (normalizedNextStatus === ORDER_STATUS.CANCELLED) {
-      monitoring = await monitorUserCancellationBehavior(order.buyerId);
+      monitoring = await monitorUserCancellationBehavior(req.user._id);
+      trustScoreUpdate = await applyCancellationTrustScore(req.user._id);
     }
 
     return sendSuccess(res, {
@@ -250,6 +263,7 @@ const updateOrderStatus = async (req, res, next) => {
       data: order,
       extras: {
         order,
+        ...(trustScoreUpdate ? { trustScoreUpdate } : {}),
         ...(monitoring ? { monitoring } : {}),
       },
     });

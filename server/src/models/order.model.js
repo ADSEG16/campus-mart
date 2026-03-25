@@ -58,6 +58,11 @@ const orderSchema = new mongoose.Schema(
 			default: null,
 			trim: true,
 		},
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     buyerConfirmed: {
 			type: Boolean,
 			default: false,

@@ -71,7 +71,7 @@ describe('Order monitoring and admin flagged users endpoints', () => {
 
     expect(response.statusCode).toBe(200);
     expect(save).toHaveBeenCalledTimes(1);
-    expect(monitorUserCancellationBehavior).toHaveBeenCalledWith({ toString: expect.any(Function) });
+    expect(monitorUserCancellationBehavior).toHaveBeenCalledWith('buyer-1');
     expect(response.body.monitoring.shouldFlag).toBe(true);
   });
 });

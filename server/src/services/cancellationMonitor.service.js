@@ -18,7 +18,10 @@ const monitorUserCancellationBehavior = async (userId) => {
   const windowStart = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000);
 
   const cancellationCount = await Order.countDocuments({
-    buyerId: userId,
+    $or: [
+      { cancelledBy: userId },
+      { cancelledBy: null, buyerId: userId },
+    ],
     status: { $in: [ORDER_STATUS.CANCELLED, 'cancelled'] },
     updatedAt: { $gte: windowStart },
   });
