@@ -30,7 +30,7 @@ const validateOwnership = async (req, res, next) => {
 
     // Compare JWT user ID with sellerId stored on the product
     const jwtUserId = req.user._id.toString();
-    const sellerId = product.sellerId.toString(); // ✅ matches your schema field name
+    const sellerId = product.sellerId.toString(); //  matches your schema field name
 
     if (jwtUserId !== sellerId) {
       return res.status(403).json({
@@ -43,7 +43,6 @@ const validateOwnership = async (req, res, next) => {
     req.product = product;
     next();
   } catch (error) {
-    console.error('Ownership validation error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error during ownership validation.',
