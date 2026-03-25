@@ -1,6 +1,28 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
+const sanitizeUserDocument = (userDoc) => {
+	if (!userDoc) return null;
+
+	const user = userDoc.toObject ? userDoc.toObject({ transform: false }) : userDoc;
+
+	return {
+		_id: user._id,
+		fullName: user.fullName,
+		department: user.department,
+		email: user.email,
+		graduationYear: user.graduationYear,
+		role: user.role,
+		verificationStatus: user.verificationStatus,
+		studentIdUrl: user.studentIdUrl,
+		profileImageUrl: user.profileImageUrl,
+		bio: user.bio,
+		flagged: user.flagged,
+		createdAt: user.createdAt,
+		updatedAt: user.updatedAt,
+	};
+};
+
 const userSchema = new mongoose.Schema(
 	{
 		fullName: {
@@ -74,6 +96,14 @@ const userSchema = new mongoose.Schema(
 	}
 );
 
+userSchema.set('toJSON', {
+	transform: (doc, ret) => sanitizeUserDocument(ret),
+});
+
+userSchema.set('toObject', {
+	transform: (doc, ret) => sanitizeUserDocument(ret),
+});
+
 // --- Security Middleware from Dev Branch ---
 
 // Hash password before saving
@@ -87,6 +117,14 @@ userSchema.pre('save', async function (next) {
 // Instance method to compare passwords
 userSchema.methods.comparePassword = async function (candidatePassword) {
 	return bcrypt.compare(candidatePassword, this.password);
+};
+
+userSchema.methods.sanitizeUser = function () {
+	return sanitizeUserDocument(this);
+};
+
+userSchema.statics.sanitizeUser = function (userDoc) {
+	return sanitizeUserDocument(userDoc);
 };
 
 module.exports = mongoose.model('User', userSchema);

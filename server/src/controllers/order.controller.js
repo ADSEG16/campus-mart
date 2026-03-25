@@ -1,10 +1,11 @@
 const Order = require('../models/order.model');
 const { monitorUserCancellationBehavior } = require('../services/cancellationMonitor.service');
+const { sendSuccess, sendError } = require('../utils/response');
 const {
   ORDER_STATUS,
   ORDER_ALLOWED_TRANSITIONS,
   ORDER_STATUS_VALUES,
-} = require('../constants/orderStatus');
+} = require('../constants/order.status');
 
 const LEGACY_STATUS_MAP = Object.freeze({
   pending: ORDER_STATUS.PENDING,
@@ -26,22 +27,23 @@ const updateOrderStatus = async (req, res, next) => {
     const { nextStatus, cancellationReason } = req.body;
 
     if (!nextStatus) {
-      return res.status(400).json({ message: 'nextStatus is required' });
+      return sendError(res, { statusCode: 400, message: 'nextStatus is required' });
     }
 
     const normalizedNextStatus = normalizeStatus(nextStatus);
 
     if (!ORDER_STATUS_VALUES.includes(normalizedNextStatus)) {
-      return res.status(400).json({
+      return sendError(res, {
+        statusCode: 400,
         message: 'Invalid nextStatus value',
-        allowedStatuses: ORDER_STATUS_VALUES,
+        extras: { allowedStatuses: ORDER_STATUS_VALUES },
       });
     }
 
     const order = await Order.findById(orderId);
 
     if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+      return sendError(res, { statusCode: 404, message: 'Order not found' });
     }
 
     const isBuyer = order.buyerId && order.buyerId.toString() === req.user._id.toString();
@@ -49,19 +51,20 @@ const updateOrderStatus = async (req, res, next) => {
     const isAdmin = req.user.role === 'admin';
 
     if (!isBuyer && !isSeller && !isAdmin) {
-      return res.status(403).json({ message: 'Not allowed to update this order' });
+      return sendError(res, { statusCode: 403, message: 'Not allowed to update this order' });
     }
 
     const currentStatus = normalizeStatus(order.status);
 
     if (currentStatus === normalizedNextStatus) {
-      return res.status(400).json({ message: `Order is already ${normalizedNextStatus}` });
+      return sendError(res, { statusCode: 400, message: `Order is already ${normalizedNextStatus}` });
     }
 
     if (!canTransition(currentStatus, normalizedNextStatus)) {
-      return res.status(400).json({
+      return sendError(res, {
+        statusCode: 400,
         message: `Invalid status transition: ${currentStatus} -> ${normalizedNextStatus}`,
-        allowedTransitions: getAllowedNextStatuses(currentStatus),
+        extras: { allowedTransitions: getAllowedNextStatuses(currentStatus) },
       });
     }
 
@@ -78,10 +81,13 @@ const updateOrderStatus = async (req, res, next) => {
       monitoring = await monitorUserCancellationBehavior(order.buyerId);
     }
 
-    return res.status(200).json({
+    return sendSuccess(res, {
       message: 'Order status updated successfully',
-      order,
-      ...(monitoring ? { monitoring } : {}),
+      data: order,
+      extras: {
+        order,
+        ...(monitoring ? { monitoring } : {}),
+      },
     });
   } catch (error) {
     return next(error);

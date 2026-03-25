@@ -1,17 +1,21 @@
 const Product = require('../models/product.model');
 const { uploadManyImages } = require('../services/product.service');
+const { sendSuccess, sendError } = require('../utils/response');
 
 // Create a new product
 const createProduct = async (req, res, next) => {
   try {
-    const { title, description, category, condition, price, availabilityStatus, stock, images, meetingSpot } = req.body;
+    const { title, description, category, condition, price, availabilityStatus, stock, meetingSpot } = req.body;
 
     if (!req.user) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return sendError(res, { statusCode: 401, message: 'Authentication required' });
     }
 
     const uploadedImages = await uploadManyImages(req.files);
-    const imageUrls = uploadedImages.map((image) => image.secureUrl);
+    const imageObjects = uploadedImages.map((image) => ({
+      url: image.secureUrl,
+      publicId: image.publicId,
+    }));
 
     const product = new Product({
       title,
@@ -22,14 +26,14 @@ const createProduct = async (req, res, next) => {
       sellerId: req.user._id,
       availabilityStatus,
       stock,
-      images: imageUrls,
+      images: imageObjects,
       meetingSpot,
     });
 
     await product.save();
 
-    return res.status(201).json({
-      success: true,
+    return sendSuccess(res, {
+      statusCode: 201,
       message: 'Product created successfully',
       data: product,
     });
@@ -42,6 +46,9 @@ const createProduct = async (req, res, next) => {
 const getAllProducts = async (req, res, next) => {
   try {
     const { category, condition, minPrice, maxPrice, sellerId } = req.query;
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 100);
+    const skip = (page - 1) * limit;
 
     const filters = {};
 
@@ -67,14 +74,31 @@ const getAllProducts = async (req, res, next) => {
       filters.sellerId = sellerId;
     }
 
-    const products = await Product.find(filters)
+    const [products, total] = await Promise.all([
+      Product.find(filters)
       .populate('sellerId', '_id email')
-      .select('-__v');
+      .select('-__v')
+      .skip(skip)
+      .limit(limit),
+      Product.countDocuments(filters),
+    ]);
 
-    return res.status(200).json({
-      success: true,
-      count: products.length,
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+    return sendSuccess(res, {
+      message: 'Products fetched successfully',
       data: products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+      extras: {
+        count: products.length,
+      },
     });
   } catch (error) {
     return next(error);
@@ -91,11 +115,11 @@ const getProductById = async (req, res, next) => {
       .select('-__v');
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return sendError(res, { statusCode: 404, message: 'Product not found' });
     }
 
-    return res.status(200).json({
-      success: true,
+    return sendSuccess(res, {
+      message: 'Product fetched successfully',
       data: product,
     });
   } catch (error) {
@@ -109,24 +133,27 @@ const updateProduct = async (req, res, next) => {
     const { productId } = req.params;
 
     if (!req.user) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return sendError(res, { statusCode: 401, message: 'Authentication required' });
     }
 
     const product = await Product.findById(productId);
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return sendError(res, { statusCode: 404, message: 'Product not found' });
     }
 
     // Check if the user is the seller
     if (product.sellerId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'You do not have permission to update this product' });
+      return sendError(res, { statusCode: 403, message: 'You do not have permission to update this product' });
     }
 
     const { title, description, category, condition, price, availabilityStatus, stock, meetingSpot } = req.body;
 
     const uploadedImages = await uploadManyImages(req.files);
-    const imageUrls = uploadedImages.map((image) => image.secureUrl);
+    const imageObjects = uploadedImages.map((image) => ({
+      url: image.secureUrl,
+      publicId: image.publicId,
+    }));
 
     if (title !== undefined) product.title = title;
     if (description !== undefined) product.description = description;
@@ -135,13 +162,12 @@ const updateProduct = async (req, res, next) => {
     if (price !== undefined) product.price = price;
     if (availabilityStatus !== undefined) product.availabilityStatus = availabilityStatus;
     if (stock !== undefined) product.stock = stock;
-    if (imageUrls.length > 0) product.images = imageUrls;
+    if (imageObjects.length > 0) product.images = imageObjects;
     if (meetingSpot !== undefined) product.meetingSpot = meetingSpot;
 
     await product.save();
 
-    return res.status(200).json({
-      success: true,
+    return sendSuccess(res, {
       message: 'Product updated successfully',
       data: product,
     });
@@ -156,24 +182,23 @@ const deleteProduct = async (req, res, next) => {
     const { productId } = req.params;
 
     if (!req.user) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return sendError(res, { statusCode: 401, message: 'Authentication required' });
     }
 
     const product = await Product.findById(productId);
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return sendError(res, { statusCode: 404, message: 'Product not found' });
     }
 
     // Check if the user is the seller
     if (product.sellerId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'You do not have permission to delete this product' });
+      return sendError(res, { statusCode: 403, message: 'You do not have permission to delete this product' });
     }
 
     await Product.findByIdAndDelete(productId);
 
-    return res.status(200).json({
-      success: true,
+    return sendSuccess(res, {
       message: 'Product deleted successfully',
     });
   } catch (error) {
@@ -185,15 +210,37 @@ const deleteProduct = async (req, res, next) => {
 const getProductsBySeller = async (req, res, next) => {
   try {
     const { sellerId } = req.params;
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 100);
+    const skip = (page - 1) * limit;
 
-    const products = await Product.find({ sellerId })
+    const filters = { sellerId };
+
+    const [products, total] = await Promise.all([
+      Product.find(filters)
       .populate('sellerId', '_id email')
-      .select('-__v');
+      .select('-__v')
+      .skip(skip)
+      .limit(limit),
+      Product.countDocuments(filters),
+    ]);
 
-    return res.status(200).json({
-      success: true,
-      count: products.length,
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+    return sendSuccess(res, {
+      message: 'Seller products fetched successfully',
       data: products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+      extras: {
+        count: products.length,
+      },
     });
   } catch (error) {
     return next(error);
