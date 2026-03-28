@@ -89,6 +89,34 @@ const createOrder = async (req, res, next) => {
       });
     });
 
+    // Reduce stock atomically to prevent race conditions (two simultaneous purchases)
+    for (const { productId, quantity } of orderItems) {
+      const updated = await Product.findOneAndUpdate(
+        {
+          _id: productId,
+          stock: { $gte: quantity },
+          availabilityStatus: 'Available',
+        },
+        {
+          $inc: { stock: -quantity },
+        },
+        { new: true }
+      );
+
+      if (!updated) {
+        return sendError(res, {
+          statusCode: 409,
+          message: 'One or more products are no longer available or have insufficient stock',
+        });
+      }
+
+      if (updated.stock === 0) {
+        await Product.findByIdAndUpdate(productId, {
+          availabilityStatus: 'Unavailable',
+        });
+      }
+    }
+
     const order = await Order.create({
       buyerId: req.user._id,
       sellerId,
