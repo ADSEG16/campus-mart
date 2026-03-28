@@ -46,7 +46,7 @@ describe('validateOwnership Middleware', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        message: 'Forbidden: You do not have permission to modify this product.',
+        message: 'You do not have permission to update this product',
       })
     );
     expect(next).not.toHaveBeenCalled();
