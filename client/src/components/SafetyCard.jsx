@@ -1,7 +1,12 @@
 import React from "react";
 import { Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const SafetyFirst = () => {
+  const navigate = useNavigate();
+    const handleViewGuide = () => {
+      navigate("/safety");
+    }
   return (
     <div className="bg-blue-100 p-4 border border-blue-600 mt-6 rounded-2xl max-w-xs">
       <div className="flex items-center space-x-2 mb-2">
@@ -13,7 +18,7 @@ const SafetyFirst = () => {
         Always meet in <strong>Safe Zones</strong> and use our in-app chat for all communications.
       </p>
       
-      <div className=" text-blue-600 text-xs font-mono p-2 ">
+      <div className=" text-blue-600 text-xs font-mono p-2 cursor-pointer" onClick={handleViewGuide}>
        VIEW SAFETY GUIDE {'->'} 
       </div>
     </div>

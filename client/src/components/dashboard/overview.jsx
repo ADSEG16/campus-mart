@@ -24,7 +24,7 @@ const MarketplaceDashboard = () => {
     const matchesSearch =
       !searchQuery ||
       [listing.title, listing.subtitle, listing.description]
-        .some((field) => field.toLowerCase().includes(searchQuery));
+        .some((field) => field?.toLowerCase().includes(searchQuery));
     return matchesCategory && matchesSearch;
   });
 
@@ -38,12 +38,28 @@ const MarketplaceDashboard = () => {
   };
 
   const handleHeartClick = (e, listing) => {
-    e.stopPropagation(); // Prevent card click if you add that later
+    e.stopPropagation();
     toggleWatchlist(listing);
   };
 
   const handleViewDetails = (listingId) => {
-    navigate(`/item/${listingId}`); // Navigate to item details page
+    navigate(`/item/${listingId}`);
+  };
+
+  // Helper function to get user initials
+  const getUserInitials = (user) => {
+    if (user?.name) {
+      return user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+    }
+    return "U";
+  };
+
+  // Helper function to get display name
+  const getDisplayName = (user) => {
+    if (user?.name) {
+      return user.name;
+    }
+    return "Seller";
   };
 
   return (
@@ -127,13 +143,17 @@ const MarketplaceDashboard = () => {
                   <div className="flex items-center space-x-1 sm:space-x-2">
                     {/* User Avatar */}
                     <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-medium">
-                      {listing.user.initials}
+                      {getUserInitials(listing.user)}
                     </div>
                     <div>
                       <div className="flex items-center flex-wrap gap-1">
-                        <span className="text-xs sm:text-sm font-medium text-gray-900">{listing.user.name}</span>
-                        <span className="text-xs text-gray-500">{listing.user.age}</span>
-                        {listing.user.verified && (
+                        <span className="text-xs sm:text-sm font-medium text-gray-900">
+                          {getDisplayName(listing.user)}
+                        </span>
+                        {listing.user?.age && (
+                          <span className="text-xs text-gray-500">{listing.user.age}</span>
+                        )}
+                        {listing.user?.verified && (
                           <span className="text-xs text-green-600 font-medium">✓</span>
                         )}
                       </div>
@@ -155,7 +175,13 @@ const MarketplaceDashboard = () => {
                         }`} 
                       />
                     </button>
-                    <button className="p-1 hover:bg-gray-100 rounded">
+                    <button 
+                      className="p-1 hover:bg-gray-100 rounded"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Handle message functionality
+                      }}
+                    >
                       <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
                     </button>
                   </div>

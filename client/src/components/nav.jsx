@@ -23,6 +23,9 @@ const CampusNavbar = () => {
     // keep existing path but replace query param
     navigate(`${location.pathname}?q=${encodeURIComponent(query)}`);
   };
+  const handleProfileClick = () => {
+    navigate("/profile");
+  }
 
   return (
     <nav className="w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm">
@@ -139,7 +142,7 @@ const CampusNavbar = () => {
         </Link>
 
          {/* Profile Icon */}
-        <button className="text-gray-600 hover:text-black">
+        <button onClick={handleProfileClick} className="text-gray-600 hover:text-black">
           <svg 
             className="h-5 w-5" 
             fill="none" 
