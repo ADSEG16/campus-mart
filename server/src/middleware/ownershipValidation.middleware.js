@@ -35,7 +35,7 @@ const validateOwnership = async (req, res, next) => {
     if (jwtUserId !== sellerId) {
       return res.status(403).json({
         success: false,
-        message: 'Forbidden: You do not have permission to modify this product.',
+        message: 'You do not have permission to update this product',
       });
     }
 

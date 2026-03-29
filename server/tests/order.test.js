@@ -53,6 +53,12 @@ describe('Order routes', () => {
       },
     ]);
 
+    Product.findOneAndUpdate.mockResolvedValue({
+      _id: 'product-1',
+      stock: 3,
+      availabilityStatus: 'Available',
+    });
+
     Order.create.mockResolvedValue({
       _id: 'order-1',
       buyerId: 'buyer-1',
