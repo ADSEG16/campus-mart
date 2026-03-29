@@ -1,4 +1,4 @@
-const validateOwnership = require('../src/middleware/ownershipValidation');
+const validateOwnership = require('../src/middleware/ownershipValidation.middleware');
 const Product = require('../src/models/product.model');
 
 jest.mock('../src/models/product.model');
@@ -22,7 +22,7 @@ describe('validateOwnership Middleware', () => {
     jest.clearAllMocks();
   });
 
-  test('✅ Should call next() when JWT user ID matches sellerId', async () => {
+  test('should call next() when JWT user ID matches sellerId', async () => {
     Product.findById.mockResolvedValue({
       _id: 'product456',
       sellerId: 'user123',
@@ -34,7 +34,7 @@ describe('validateOwnership Middleware', () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  test('🚫 Should return 403 when JWT user ID does NOT match sellerId', async () => {
+  test('should return 403 when JWT user ID does NOT match sellerId', async () => {
     Product.findById.mockResolvedValue({
       _id: 'product456',
       sellerId: 'differentUser999',
@@ -52,7 +52,7 @@ describe('validateOwnership Middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('🔍 Should return 404 when product does not exist', async () => {
+  test('should return 404 when product does not exist', async () => {
     Product.findById.mockResolvedValue(null);
 
     await validateOwnership(req, res, next);
@@ -64,7 +64,7 @@ describe('validateOwnership Middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('⚠️ Should return 400 when no product ID is provided', async () => {
+  test('should return 400 when no product ID is provided', async () => {
     req.params = {};
 
     await validateOwnership(req, res, next);
@@ -73,7 +73,7 @@ describe('validateOwnership Middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('💥 Should return 500 on unexpected database error', async () => {
+  test('should return 500 on unexpected database error', async () => {
     Product.findById.mockRejectedValue(new Error('DB connection failed'));
 
     await validateOwnership(req, res, next);
@@ -82,7 +82,7 @@ describe('validateOwnership Middleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  test('✅ Should attach product to req on success', async () => {
+  test('should attach product to req on success', async () => {
     const mockProduct = {
       _id: 'product456',
       sellerId: 'user123',
