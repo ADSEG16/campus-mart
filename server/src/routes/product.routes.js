@@ -1,7 +1,7 @@
 const express = require('express');
 const { requireUser } = require('../middleware/auth.middleware');
 const { productImagesUpload } = require('../config/multer');
-const validateOwnership = require('../middleware/ownershipValidation');
+const validateOwnership = require('../middleware/ownershipValidation.middleware');
 const {
   createProduct,
   getAllProducts,
