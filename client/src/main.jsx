@@ -8,11 +8,10 @@ import Verification from "./components/signup/verification";
 import ProfileSetup from "./components/signup/profileSetup";
 import Dashboard from "./pages/dashboard";
 import WatchList from "./pages/watchlist";
-import TransactionHistory from "./pages/TransactionHistory";
-import TransactionDetails from "./components/transactions/TransactionDetails";
-import PostNewItem from "./components/item-form";
-import ListingPage from "./pages/MyListings";
-import EditItem from "./components/EditItem";
+ import Safety from "./pages/safety";
+import Settings from "./pages/settings";
+import Messages from "./pages/messages";
+import ProductDetail from "./pages/product-detail";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
@@ -25,6 +24,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/signup/profileSetup" element={<ProfileSetup />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/watchlist" element={<WatchList />} />
+        <Route path="/safety" element={<Safety />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/transactions" element={<TransactionHistory />} />
         <Route path="/transactions/:id" element={<TransactionDetails />} />
         <Route path="/post-item" element={<PostNewItem />} />

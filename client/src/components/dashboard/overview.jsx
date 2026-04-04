@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { MapPin, Heart, MessageCircle } from "lucide-react";
 import { useListings } from "../../context";
 import { useWatchlist } from "../../context";
@@ -139,6 +139,12 @@ const MarketplaceDashboard = () => {
                       </div>
                       <span className="text-xs font-medium text-blue-600">DETAILS</span>
                     </div>
+                    <Link 
+                      to={`/product/${listing.id}`}
+                      className="text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      DETAILS
+                    </Link>
                   </div>
 
                   {/* Action Icons */}

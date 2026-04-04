@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Heart, Clock, MessageCircle } from "lucide-react";
 import { useWatchlist } from "../../context";
 
@@ -106,6 +106,12 @@ const MyWatchlist = () => {
                       </div>
                       <span className="text-xs font-medium text-blue-600">DETAILS</span>
                     </div>
+                    <Link 
+                      to={`/product/${item.id}`}
+                      className="text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      DETAILS
+                    </Link>
                   </div>
 
                   {/* Action Icons */}
