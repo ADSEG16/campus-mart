@@ -1,6 +1,11 @@
-
+import {useNavigate} from "react-router-dom";
 
 export default function PostCard() {
+  const navigate = useNavigate();
+
+  const handlePostClick = () => {
+    navigate('/post-item');
+  }
     return(
         <div className="max-w-6xl  p-4 sm:p-6 ">
         {/* Moving out Banner */}
@@ -14,7 +19,7 @@ export default function PostCard() {
               Don't throw it away until you're ready to actually pack your stuff!
             </p>
           </div>
-          <button className="px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors text-sm font-medium">
+          <button onClick={handlePostClick} className="px-6 py-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-colors text-sm font-medium">
             Post Your First Item
           </button>
         </div>

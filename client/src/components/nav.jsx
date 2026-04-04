@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate, useLocation, Link } from "react-router-dom";
 import Notifications from "./NotificationCard";
 
 
@@ -36,7 +36,7 @@ const CampusNavbar = () => {
         >
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
         </svg>
-        <span className="text-xl font-bold text-black">CampusMart</span>
+        <p className="text-xl font-bold text-black">Campus<span className="text-blue-500">Mart</span></p>
       </div>
 
       {/* Search Bar */}
@@ -116,6 +116,7 @@ const CampusNavbar = () => {
         </div>
 
         {/* Post Item Button */}
+        <Link to="/post-item">
         <button className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-full transition-colors">
           {/* Plus icon */}
           <svg 
@@ -133,6 +134,7 @@ const CampusNavbar = () => {
           </svg>
           <span>Post Item</span>
         </button>
+        </Link>
 
          {/* Profile Icon */}
         <button className="text-gray-600 hover:text-black">

@@ -1,12 +1,12 @@
-import React from "react";
-import { User } from "lucide-react";
+// import React from "react";
+// import { User } from "lucide-react";
 
 export default function Header() {
     return(
         <div>
             {/* Navigation Bar */}
             <div className="bg-white px-6 py-3">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
+                <div className="max-w-7xl flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                         <span className="text-sm text-gray-500">MARKETPLACE</span>
                         <span className="text-sm text-gray-400">›</span>
@@ -17,7 +17,7 @@ export default function Header() {
                     </div> */}
                 </div>
             </div>
-            <div className="max-w-7xl mx-auto p-6">
+            <div className="max-w-7xl p-6">
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">My Watchlist</h1>
