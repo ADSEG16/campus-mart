@@ -85,6 +85,14 @@ const orderSchema = new mongoose.Schema(
 			type: Boolean,
 			default: false,
 		},
+    buyerReviewed: {
+      type: Boolean,
+      default: false,
+    },
+    sellerReviewed: {
+      type: Boolean,
+      default: false,
+    },
 	},
 	{
 		timestamps: true,

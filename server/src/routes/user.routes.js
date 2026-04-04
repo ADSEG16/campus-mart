@@ -127,9 +127,34 @@ const updateCurrentUserProfile = async (req, res, next) => {
             return sendError(res, { statusCode: 404, message: 'User not found' });
         }
 
-        const updatableFields = ['fullName', 'department', 'graduationYear', 'bio'];
+        const userUpdatableFields = ['fullName', 'department', 'graduationYear', 'bio'];
+        const adminOnlyFields = [
+            'role',
+            'flagged',
+            'trustScore',
+            'verificationStatus',
+            'isVerified',
+            'emailVerified',
+            'emailVerifiedAt',
+        ];
+        const allowedFields = req.user.role === 'admin'
+            ? [...userUpdatableFields, ...adminOnlyFields]
+            : userUpdatableFields;
+        const attemptedFields = Object.keys(req.body || {});
+        const unauthorizedFields = attemptedFields.filter((field) => !allowedFields.includes(field));
 
-        updatableFields.forEach((field) => {
+        if (unauthorizedFields.length > 0) {
+            return sendError(res, {
+                statusCode: 403,
+                message: 'Unauthorized profile fields in patch request',
+                extras: {
+                    unauthorizedFields,
+                    allowedFields,
+                },
+            });
+        }
+
+        allowedFields.forEach((field) => {
             if (req.body[field] !== undefined) {
                 user[field] = req.body[field];
             }

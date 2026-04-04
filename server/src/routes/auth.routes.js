@@ -2,6 +2,7 @@ const express = require('express');
 const {
 	signup,
 	login,
+	verifyEmail,
 	getMe,
 	uploadStudentId,
 	uploadProfileImage,
@@ -14,6 +15,8 @@ const router = express.Router();
 
 router.post('/signup', signup);
 router.post('/login', login);
+router.get('/verify-email', verifyEmail);
+router.post('/verify-email', verifyEmail);
 
 router.get('/me', requireUser, getMe);
 router.post('/upload-student-id', requireUser, studentIdUpload.single('studentId'), uploadStudentId);

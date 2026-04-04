@@ -1,10 +1,14 @@
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
+const Review = require('../models/review.model');
+const mongoose = require('mongoose');
 const { monitorUserCancellationBehavior } = require('../services/cancellationMonitor.service');
 const {
   applySuccessfulDeliveryTrustScore,
   applyCancellationTrustScore,
+  applyReviewTrustScore,
 } = require('../services/trustScore.service');
+const AuditEvent = require('../models/auditEvent.model');
 const { sendSuccess, sendError } = require('../utils/response');
 const {
   ORDER_STATUS,
@@ -25,6 +29,131 @@ const normalizeStatus = status => LEGACY_STATUS_MAP[status] || status;
 const getAllowedNextStatuses = currentStatus => ORDER_ALLOWED_TRANSITIONS[currentStatus] || [];
 
 const canTransition = (currentStatus, nextStatus) => getAllowedNextStatuses(currentStatus).includes(nextStatus);
+
+const createOrderReview = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { rating, comment } = req.body;
+
+    const parsedRating = Number.parseInt(rating, 10);
+    if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return sendError(res, { statusCode: 400, message: 'rating must be an integer between 1 and 5' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return sendError(res, { statusCode: 404, message: 'Order not found' });
+    }
+
+    const isBuyer = order.buyerId && order.buyerId.toString() === req.user._id.toString();
+    const isSeller = order.sellerId && order.sellerId.toString() === req.user._id.toString();
+
+    if (!isBuyer && !isSeller) {
+      return sendError(res, { statusCode: 403, message: 'Only order participants can submit reviews' });
+    }
+
+    if (normalizeStatus(order.status) !== ORDER_STATUS.DELIVERED) {
+      return sendError(res, { statusCode: 400, message: 'Reviews can only be submitted after Delivered status' });
+    }
+
+    if ((isBuyer && order.buyerReviewed) || (isSeller && order.sellerReviewed)) {
+      return sendError(res, { statusCode: 409, message: 'You have already submitted a review for this order' });
+    }
+
+    const existingReview = await Review.findOne({
+      orderId: order._id,
+      reviewerId: req.user._id,
+    });
+
+    if (existingReview) {
+      return sendError(res, { statusCode: 409, message: 'You have already submitted a review for this order' });
+    }
+
+    const review = await Review.create({
+      orderId: order._id,
+      reviewerId: req.user._id,
+      revieweeId: isBuyer ? order.sellerId : order.buyerId,
+      reviewerRole: isBuyer ? 'buyer' : 'seller',
+      rating: parsedRating,
+      comment: typeof comment === 'string' ? comment : '',
+    });
+
+    if (isBuyer) {
+      order.buyerReviewed = true;
+    }
+
+    if (isSeller) {
+      order.sellerReviewed = true;
+    }
+
+    await order.save();
+
+    const reviewSignal = await applyReviewTrustScore(review);
+
+    return sendSuccess(res, {
+      statusCode: 201,
+      message: 'Review submitted successfully',
+      data: review,
+      extras: {
+        reviewSignal,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const listSellerReviews = async (req, res, next) => {
+  try {
+    const { sellerId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(sellerId)) {
+      return sendError(res, { statusCode: 400, message: 'Invalid sellerId' });
+    }
+
+    const [reviews, aggregates] = await Promise.all([
+      Review.find({ revieweeId: sellerId, reviewerRole: 'buyer' })
+        .populate('reviewerId', '_id fullName email')
+        .sort({ createdAt: -1 }),
+      Review.aggregate([
+        {
+          $match: {
+            revieweeId: new mongoose.Types.ObjectId(sellerId),
+            reviewerRole: 'buyer',
+          },
+        },
+        {
+          $group: {
+            _id: '$revieweeId',
+            averageRating: { $avg: '$rating' },
+            ratingCount: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const summary = aggregates[0]
+      ? {
+        averageRating: Number(aggregates[0].averageRating.toFixed(2)),
+        ratingCount: aggregates[0].ratingCount,
+      }
+      : {
+        averageRating: 0,
+        ratingCount: 0,
+      };
+
+    return sendSuccess(res, {
+      message: 'Seller reviews fetched successfully',
+      data: reviews,
+      extras: {
+        sellerId,
+        summary,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
 
 const createOrder = async (req, res, next) => {
   try {
@@ -217,6 +346,64 @@ const getOrderDetail = async (req, res, next) => {
   }
 };
 
+const confirmDelivery = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return sendError(res, { statusCode: 404, message: 'Order not found' });
+    }
+
+    const isBuyer = order.buyerId && order.buyerId.toString() === req.user._id.toString();
+    const isSeller = order.sellerId && order.sellerId.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isBuyer && !isSeller && !isAdmin) {
+      return sendError(res, { statusCode: 403, message: 'Not allowed to confirm delivery for this order' });
+    }
+
+    if (normalizeStatus(order.status) !== ORDER_STATUS.MEETUP_SCHEDULED) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'Delivery can only be confirmed after meetup is scheduled',
+      });
+    }
+
+    if (isBuyer || isAdmin) {
+      order.buyerConfirmed = true;
+    }
+
+    if (isSeller || isAdmin) {
+      order.sellerConfirmed = true;
+    }
+
+    await order.save();
+    await AuditEvent.create({
+      eventType: 'order.delivery_confirmation_recorded',
+      actorId: req.user._id,
+      entityType: 'order',
+      entityId: order._id,
+      payload: {
+        status: order.status,
+        buyerConfirmed: order.buyerConfirmed,
+        sellerConfirmed: order.sellerConfirmed,
+      },
+    });
+
+    return sendSuccess(res, {
+      message: 'Delivery confirmation updated successfully',
+      data: order,
+      extras: {
+        buyerConfirmed: order.buyerConfirmed,
+        sellerConfirmed: order.sellerConfirmed,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const updateOrderStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -298,32 +485,11 @@ const updateOrderStatus = async (req, res, next) => {
       order.meetupScheduledFor = scheduledDate;
     }
 
-    if (normalizedNextStatus === ORDER_STATUS.DELIVERED) {
-      if (isBuyer) {
-        order.buyerConfirmed = true;
-      }
-
-      if (isSeller) {
-        order.sellerConfirmed = true;
-      }
-
-      if (isAdmin) {
-        order.buyerConfirmed = true;
-        order.sellerConfirmed = true;
-      }
-
-      if (!order.buyerConfirmed || !order.sellerConfirmed) {
-        await order.save();
-
-        return sendSuccess(res, {
-          message: 'Delivery confirmation recorded; waiting for both buyer and seller confirmations',
-          data: order,
-          extras: {
-            buyerConfirmed: order.buyerConfirmed,
-            sellerConfirmed: order.sellerConfirmed,
-          },
-        });
-      }
+    if (normalizedNextStatus === ORDER_STATUS.DELIVERED && (!order.buyerConfirmed || !order.sellerConfirmed)) {
+      return sendError(res, {
+        statusCode: 400,
+        message: 'Both buyer and seller must confirm delivery before marking order as Delivered',
+      });
     }
 
     order.status = normalizedNextStatus;
@@ -336,6 +502,17 @@ const updateOrderStatus = async (req, res, next) => {
     }
 
     await order.save();
+    await AuditEvent.create({
+      eventType: 'order.status_changed',
+      actorId: req.user._id,
+      entityType: 'order',
+      entityId: order._id,
+      payload: {
+        fromStatus: currentStatus,
+        toStatus: normalizedNextStatus,
+        cancellationReason: normalizedNextStatus === ORDER_STATUS.CANCELLED ? order.cancellationReason : null,
+      },
+    });
 
     let trustScoreUpdate;
     if (normalizedNextStatus === ORDER_STATUS.DELIVERED) {
@@ -370,7 +547,10 @@ const cancelOrder = async (req, res, next) => {
 module.exports = {
   createOrder,
   listOrders,
+  createOrderReview,
+  listSellerReviews,
   getOrderDetail,
+  confirmDelivery,
   updateOrderStatus,
   cancelOrder,
 };
