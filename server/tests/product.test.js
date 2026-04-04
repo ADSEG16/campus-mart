@@ -88,13 +88,35 @@ describe('Product routes CRUD', () => {
       .field('category', 'Textbooks')
       .field('condition', 'Good')
       .field('price', '120')
-      .field('meetingSpot', 'verified');
+      .field('meetingSpot', 'verified')
+      .attach('images', Buffer.from('fake-image'), {
+        filename: 'book.jpg',
+        contentType: 'image/jpeg',
+      });
 
     expect(response.statusCode).toBe(201);
     expect(response.body.success).toBe(true);
     expect(response.body.message).toBe('Product created successfully');
     expect(uploadManyImages).toHaveBeenCalled();
     expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /api/products rejects create request without images', async () => {
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+
+    const response = await request(app)
+      .post('/api/products')
+      .set('x-user-id', 'seller-1')
+      .field('title', 'Biology Textbook')
+      .field('description', 'Like new')
+      .field('category', 'Textbooks')
+      .field('condition', 'Good')
+      .field('price', '120')
+      .field('meetingSpot', 'verified');
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toBe('At least one product image is required');
+    expect(uploadManyImages).not.toHaveBeenCalled();
   });
 
   it('PATCH /api/products/:id blocks updates by non-owner', async () => {
