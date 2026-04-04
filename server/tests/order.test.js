@@ -149,7 +149,7 @@ describe('Order routes', () => {
     expect(response.body.message).toBe('Not allowed to view this order');
   });
 
-  it('applies trust reward for delivered status transition', async () => {
+  it('records buyer delivery confirmation and waits for seller confirmation', async () => {
     User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
 
     const save = jest.fn().mockResolvedValue(undefined);
@@ -158,6 +158,8 @@ describe('Order routes', () => {
       buyerId: { toString: () => 'buyer-1' },
       sellerId: { toString: () => 'seller-1' },
       status: ORDER_STATUS.MEETUP_SCHEDULED,
+      buyerConfirmed: false,
+      sellerConfirmed: false,
       cancellationReason: null,
       cancelledBy: null,
       save,
@@ -173,9 +175,110 @@ describe('Order routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(save).toHaveBeenCalledTimes(1);
-    expect(applySuccessfulDeliveryTrustScore).toHaveBeenCalledWith(orderDoc);
+    expect(response.body.message).toBe(
+      'Delivery confirmation recorded; waiting for both buyer and seller confirmations'
+    );
+    expect(orderDoc.status).toBe(ORDER_STATUS.MEETUP_SCHEDULED);
+    expect(orderDoc.buyerConfirmed).toBe(true);
+    expect(orderDoc.sellerConfirmed).toBe(false);
+    expect(applySuccessfulDeliveryTrustScore).not.toHaveBeenCalled();
     expect(applyCancellationTrustScore).not.toHaveBeenCalled();
     expect(monitorUserCancellationBehavior).not.toHaveBeenCalled();
+  });
+
+  it('applies trust reward after seller confirms delivered when buyer already confirmed', async () => {
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+
+    const save = jest.fn().mockResolvedValue(undefined);
+    const orderDoc = {
+      _id: 'order-1',
+      buyerId: { toString: () => 'buyer-1' },
+      sellerId: { toString: () => 'seller-1' },
+      status: ORDER_STATUS.MEETUP_SCHEDULED,
+      buyerConfirmed: true,
+      sellerConfirmed: false,
+      cancellationReason: null,
+      cancelledBy: null,
+      save,
+    };
+
+    Order.findById.mockResolvedValue(orderDoc);
+    applySuccessfulDeliveryTrustScore.mockResolvedValue({ event: 'delivered' });
+
+    const response = await request(app)
+      .patch('/api/orders/order-1/status')
+      .set('x-user-id', 'seller-1')
+      .send({ nextStatus: ORDER_STATUS.DELIVERED });
+
+    expect(response.statusCode).toBe(200);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(orderDoc.status).toBe(ORDER_STATUS.DELIVERED);
+    expect(orderDoc.sellerConfirmed).toBe(true);
+    expect(applySuccessfulDeliveryTrustScore).toHaveBeenCalledWith(orderDoc);
+  });
+
+  it('requires meetup details when moving to Meetup Scheduled', async () => {
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+
+    const save = jest.fn().mockResolvedValue(undefined);
+    const orderDoc = {
+      _id: 'order-1',
+      buyerId: { toString: () => 'buyer-1' },
+      sellerId: { toString: () => 'seller-1' },
+      status: ORDER_STATUS.PENDING,
+      cancellationReason: null,
+      cancelledBy: null,
+      save,
+    };
+
+    Order.findById.mockResolvedValue(orderDoc);
+
+    const response = await request(app)
+      .patch('/api/orders/order-1/status')
+      .set('x-user-id', 'buyer-1')
+      .send({ nextStatus: ORDER_STATUS.MEETUP_SCHEDULED });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.message).toBe(
+      'meetupType is required and must be either verified or custom when scheduling meetup'
+    );
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('stores meetup details when moving to Meetup Scheduled', async () => {
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+
+    const save = jest.fn().mockResolvedValue(undefined);
+    const orderDoc = {
+      _id: 'order-1',
+      buyerId: { toString: () => 'buyer-1' },
+      sellerId: { toString: () => 'seller-1' },
+      status: ORDER_STATUS.PENDING,
+      cancellationReason: null,
+      cancelledBy: null,
+      meetupType: null,
+      meetupLocation: null,
+      meetupScheduledFor: null,
+      save,
+    };
+
+    Order.findById.mockResolvedValue(orderDoc);
+
+    const response = await request(app)
+      .patch('/api/orders/order-1/status')
+      .set('x-user-id', 'buyer-1')
+      .send({
+        nextStatus: ORDER_STATUS.MEETUP_SCHEDULED,
+        meetupType: 'verified',
+        meetupLocation: 'Library Forecourt',
+        meetupScheduledFor: '2026-04-10T14:00:00.000Z',
+      });
+
+    expect(response.statusCode).toBe(200);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(orderDoc.meetupType).toBe('verified');
+    expect(orderDoc.meetupLocation).toBe('Library Forecourt');
+    expect(orderDoc.meetupScheduledFor).toBeInstanceOf(Date);
   });
 
   it('applies actor-based penalty and monitoring on cancellation', async () => {

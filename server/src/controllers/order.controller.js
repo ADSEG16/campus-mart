@@ -220,7 +220,13 @@ const getOrderDetail = async (req, res, next) => {
 const updateOrderStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params;
-    const { nextStatus, cancellationReason } = req.body;
+    const {
+      nextStatus,
+      cancellationReason,
+      meetupType,
+      meetupLocation,
+      meetupScheduledFor,
+    } = req.body;
 
     if (!nextStatus) {
       return sendError(res, { statusCode: 400, message: 'nextStatus is required' });
@@ -262,6 +268,62 @@ const updateOrderStatus = async (req, res, next) => {
         message: `Invalid status transition: ${currentStatus} -> ${normalizedNextStatus}`,
         extras: { allowedTransitions: getAllowedNextStatuses(currentStatus) },
       });
+    }
+
+    if (normalizedNextStatus === ORDER_STATUS.MEETUP_SCHEDULED) {
+      if (!['verified', 'custom'].includes(meetupType)) {
+        return sendError(res, {
+          statusCode: 400,
+          message: 'meetupType is required and must be either verified or custom when scheduling meetup',
+        });
+      }
+
+      if (!meetupLocation || typeof meetupLocation !== 'string' || !meetupLocation.trim()) {
+        return sendError(res, {
+          statusCode: 400,
+          message: 'meetupLocation is required when scheduling meetup',
+        });
+      }
+
+      const scheduledDate = new Date(meetupScheduledFor);
+      if (!meetupScheduledFor || Number.isNaN(scheduledDate.getTime())) {
+        return sendError(res, {
+          statusCode: 400,
+          message: 'meetupScheduledFor must be a valid date when scheduling meetup',
+        });
+      }
+
+      order.meetupType = meetupType;
+      order.meetupLocation = meetupLocation.trim();
+      order.meetupScheduledFor = scheduledDate;
+    }
+
+    if (normalizedNextStatus === ORDER_STATUS.DELIVERED) {
+      if (isBuyer) {
+        order.buyerConfirmed = true;
+      }
+
+      if (isSeller) {
+        order.sellerConfirmed = true;
+      }
+
+      if (isAdmin) {
+        order.buyerConfirmed = true;
+        order.sellerConfirmed = true;
+      }
+
+      if (!order.buyerConfirmed || !order.sellerConfirmed) {
+        await order.save();
+
+        return sendSuccess(res, {
+          message: 'Delivery confirmation recorded; waiting for both buyer and seller confirmations',
+          data: order,
+          extras: {
+            buyerConfirmed: order.buyerConfirmed,
+            sellerConfirmed: order.sellerConfirmed,
+          },
+        });
+      }
     }
 
     order.status = normalizedNextStatus;

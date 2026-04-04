@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-const { hashPassword, comparePassword } = require('../utils/hashPassword');
+const { comparePassword } = require('../utils/hashPassword');
 const { uploadSingleProfileImage, uploadStudentIdDocument } = require('../services/product.service');
 const { sendSuccess, sendError } = require('../utils/response');
 
@@ -58,14 +58,12 @@ const signup = async (req, res, next) => {
 			return sendError(res, { statusCode: 409, message: 'Email already in use' });
 		}
 
-		const hashedPassword = await hashPassword(password);
-
 		const user = await User.create({
 			fullName,
 			department,
 			email: email.toLowerCase(),
 			graduationYear,
-			password: hashedPassword,
+			password,
 		});
 
 		const token = signAuthToken(user._id);
@@ -93,8 +91,16 @@ const login = async (req, res, next) => {
 			return sendError(res, { statusCode: 400, message: 'Email must end with @st.ug.edu.gh' });
 		}
 
-		const user = await User.findOne({ email: email.toLowerCase() });
+		const userQuery = User.findOne({ email: email.toLowerCase() });
+		const user = typeof userQuery?.select === 'function'
+			? await userQuery.select('+password')
+			: await userQuery;
+
 		if (!user) {
+			return sendError(res, { statusCode: 401, message: 'Invalid credentials' });
+		}
+
+		if (!user.password) {
 			return sendError(res, { statusCode: 401, message: 'Invalid credentials' });
 		}
 
@@ -155,8 +161,20 @@ const uploadProfileImage = async (req, res, next) => {
 			return sendError(res, { statusCode: 400, message: 'Profile image is required' });
     }
 
-    const uploaded = await uploadSingleProfileImage(req.file);
     const user = await User.findById(req.user._id);
+
+		if (!user) {
+			return sendError(res, { statusCode: 404, message: 'User not found' });
+		}
+
+		if (user.profileImageUrl) {
+			return sendError(res, {
+				statusCode: 409,
+				message: 'Profile image already exists. Use PATCH /api/users/avatar to replace it or DELETE /api/users/avatar to remove it.',
+			});
+		}
+
+		const uploaded = await uploadSingleProfileImage(req.file);
 
     user.profileImageUrl = uploaded.secureUrl;
 
