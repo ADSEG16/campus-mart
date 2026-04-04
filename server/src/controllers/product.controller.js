@@ -11,6 +11,10 @@ const createProduct = async (req, res, next) => {
       return sendError(res, { statusCode: 401, message: 'Authentication required' });
     }
 
+    if (!Array.isArray(req.files) || req.files.length === 0) {
+      return sendError(res, { statusCode: 400, message: 'At least one product image is required' });
+    }
+
     const uploadedImages = await uploadManyImages(req.files);
     const imageObjects = uploadedImages.map((image) => ({
       url: image.secureUrl,
