@@ -45,7 +45,7 @@ const createProduct = async (req, res, next) => {
 // Get all products (with optional filters)
 const getAllProducts = async (req, res, next) => {
   try {
-    const { category, condition, minPrice, maxPrice, sellerId } = req.query;
+    const { category, condition, minPrice, maxPrice, sellerId, q } = req.query;
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 100);
     const skip = (page - 1) * limit;
@@ -72,6 +72,10 @@ const getAllProducts = async (req, res, next) => {
 
     if (sellerId) {
       filters.sellerId = sellerId;
+    }
+
+    if (q && q.trim()) {
+      filters.$text = { $search: q.trim() };
     }
 
     const [products, total] = await Promise.all([

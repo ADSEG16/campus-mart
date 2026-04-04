@@ -13,18 +13,86 @@ const uploadAvatar = async (req, res, next) => {
             return sendError(res, { statusCode: 400, message: 'Profile image is required' });
         }
 
-        const uploaded = await uploadSingleProfileImage(req.file);
         const user = await User.findById(req.user._id);
 
         if (!user) {
             return sendError(res, { statusCode: 404, message: 'User not found' });
         }
 
+        if (user.profileImageUrl) {
+            return sendError(res, {
+                statusCode: 409,
+                message: 'Profile image already exists. Use PATCH /api/users/avatar to replace it or DELETE /api/users/avatar to remove it.',
+            });
+        }
+
+        const uploaded = await uploadSingleProfileImage(req.file);
+
         user.profileImageUrl = uploaded.secureUrl;
         await user.save();
 
         return sendSuccess(res, {
             message: 'Avatar uploaded successfully',
+            data: {
+                profileImageUrl: user.profileImageUrl,
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const replaceAvatar = async (req, res, next) => {
+    try {
+        if (!req.file) {
+            return sendError(res, { statusCode: 400, message: 'Profile image is required' });
+        }
+
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return sendError(res, { statusCode: 404, message: 'User not found' });
+        }
+
+        if (!user.profileImageUrl) {
+            return sendError(res, {
+                statusCode: 400,
+                message: 'No existing profile image found. Use POST /api/users/avatar first.',
+            });
+        }
+
+        const uploaded = await uploadSingleProfileImage(req.file);
+        user.profileImageUrl = uploaded.secureUrl;
+        await user.save();
+
+        return sendSuccess(res, {
+            message: 'Avatar replaced successfully',
+            data: {
+                profileImageUrl: user.profileImageUrl,
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+const deleteAvatar = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return sendError(res, { statusCode: 404, message: 'User not found' });
+        }
+
+        if (!user.profileImageUrl) {
+            return sendError(res, { statusCode: 400, message: 'No profile image to delete' });
+        }
+
+        user.profileImageUrl = null;
+        await user.save();
+
+        return sendSuccess(res, {
+            message: 'Avatar deleted successfully',
             data: {
                 profileImageUrl: user.profileImageUrl,
             },
@@ -59,9 +127,34 @@ const updateCurrentUserProfile = async (req, res, next) => {
             return sendError(res, { statusCode: 404, message: 'User not found' });
         }
 
-        const updatableFields = ['fullName', 'department', 'graduationYear', 'bio'];
+        const userUpdatableFields = ['fullName', 'department', 'graduationYear', 'bio'];
+        const adminOnlyFields = [
+            'role',
+            'flagged',
+            'trustScore',
+            'verificationStatus',
+            'isVerified',
+            'emailVerified',
+            'emailVerifiedAt',
+        ];
+        const allowedFields = req.user.role === 'admin'
+            ? [...userUpdatableFields, ...adminOnlyFields]
+            : userUpdatableFields;
+        const attemptedFields = Object.keys(req.body || {});
+        const unauthorizedFields = attemptedFields.filter((field) => !allowedFields.includes(field));
 
-        updatableFields.forEach((field) => {
+        if (unauthorizedFields.length > 0) {
+            return sendError(res, {
+                statusCode: 403,
+                message: 'Unauthorized profile fields in patch request',
+                extras: {
+                    unauthorizedFields,
+                    allowedFields,
+                },
+            });
+        }
+
+        allowedFields.forEach((field) => {
             if (req.body[field] !== undefined) {
                 user[field] = req.body[field];
             }
@@ -79,6 +172,8 @@ const updateCurrentUserProfile = async (req, res, next) => {
 };
 
 router.post('/avatar', requireUser, profileImageUpload.single('profileImage'), uploadAvatar);
+router.patch('/avatar', requireUser, profileImageUpload.single('profileImage'), replaceAvatar);
+router.delete('/avatar', requireUser, deleteAvatar);
 router.get('/profile', requireUser, getCurrentUserProfile);
 router.get('/me', requireUser, getCurrentUserProfile);
 router.patch('/profile', requireUser, updateCurrentUserProfile);

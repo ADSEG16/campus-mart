@@ -3,7 +3,7 @@ const User = require('../models/user.model');
 const { ORDER_STATUS } = require('../constants/order.status');
 
 const DEFAULT_CANCELLATION_THRESHOLD = 3;
-const WINDOW_HOURS = 24;
+const WINDOW_DAYS = 7;
 
 const getCancellationThreshold = () => {
   const parsed = Number.parseInt(process.env.CANCELLATION_FLAG_THRESHOLD, 10);
@@ -15,7 +15,7 @@ const getCancellationThreshold = () => {
 
 const monitorUserCancellationBehavior = async (userId) => {
   const threshold = getCancellationThreshold();
-  const windowStart = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000);
+  const windowStart = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
   const cancellationCount = await Order.countDocuments({
     $or: [
@@ -26,7 +26,7 @@ const monitorUserCancellationBehavior = async (userId) => {
     updatedAt: { $gte: windowStart },
   });
 
-  const shouldFlag = cancellationCount > threshold;
+  const shouldFlag = cancellationCount >= threshold;
 
   if (shouldFlag) {
     await User.findByIdAndUpdate(userId, { flagged: true });

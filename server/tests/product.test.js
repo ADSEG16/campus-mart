@@ -36,6 +36,23 @@ describe('Product routes CRUD', () => {
     expect(response.body.pagination.total).toBe(1);
   });
 
+  it('GET /api/products?q=book applies keyword filter', async () => {
+    const products = [{ _id: 'p1', title: 'Biology Book' }];
+
+    Product.find.mockReturnValue(createProductListQueryMock(products));
+    Product.countDocuments.mockResolvedValue(1);
+
+    const response = await request(app).get('/api/products?q=book');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(Product.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        $text: { $search: 'book' },
+      })
+    );
+  });
+
   it('GET /api/products/:id returns 404 when product does not exist', async () => {
     Product.findById.mockReturnValue({
       populate: jest.fn().mockReturnValue({

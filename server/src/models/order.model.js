@@ -58,6 +58,20 @@ const orderSchema = new mongoose.Schema(
 			default: null,
 			trim: true,
 		},
+    meetupType: {
+      type: String,
+      enum: ['verified', 'custom'],
+      default: null,
+    },
+    meetupLocation: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    meetupScheduledFor: {
+      type: Date,
+      default: null,
+    },
     cancelledBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -71,6 +85,14 @@ const orderSchema = new mongoose.Schema(
 			type: Boolean,
 			default: false,
 		},
+    buyerReviewed: {
+      type: Boolean,
+      default: false,
+    },
+    sellerReviewed: {
+      type: Boolean,
+      default: false,
+    },
 	},
 	{
 		timestamps: true,
