@@ -141,11 +141,12 @@ const MarketplaceDashboard = () => {
                 <p className="text-[11px] sm:text-xs text-gray-500 mb-3 line-clamp-2 sm:line-clamp-3 flex-1">{listing.description}</p>
 
                 <div className="mt-auto border-t border-gray-100 pt-3 flex items-center justify-between text-sm">
-                  <div className="inline-flex min-w-8 items-center justify-center rounded-full bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-700 sm:text-sm">
-                    {Math.max(listing.stock || 0, 0)}
+                  <div className="inline-flex items-center justify-center rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold text-gray-700 sm:text-sm">
+                    {Math.max(listing.stock || 0, 0)} stock available
                   </div>
 
-                  <div className="flex items-center text-blue-600 group-hover:translate-x-0.5 transition-transform" aria-hidden="true">
+                  <div className="flex items-center gap-1 text-blue-600 group-hover:translate-x-0.5 transition-transform" aria-hidden="true">
+                    <span className="text-xs font-semibold uppercase tracking-wide">View</span>
                     <ChevronRight className="h-4 w-4" />
                   </div>
                 </div>

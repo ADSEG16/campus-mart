@@ -3,7 +3,12 @@ const app = require('../src/app');
 const User = require('../src/models/user.model');
 const { hashPassword } = require('../src/utils/hashPassword');
 
-const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'msg-1' });
+const mockSendMail = jest.fn().mockResolvedValue({
+  messageId: 'msg-1',
+  accepted: ['test@st.ug.edu.gh', 'test2@st.ug.edu.gh'],
+  rejected: [],
+  response: '250 2.0.0 OK',
+});
 
 jest.mock('nodemailer', () => ({
   createTransport: jest.fn(() => ({

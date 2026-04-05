@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import logo from "../assets/logo.svg";
+import BrandLogo from "./BrandLogo";
 
 export default function Navbar({ variant = "default" }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,16 +17,7 @@ export default function Navbar({ variant = "default" }) {
                     <div className="flex items-center justify-between h-16">
                         {/* Logo and Brand */}
                         <div className="shrink-0">
-                            <Link to="/dashboard" className="flex items-center space-x-1">
-                                <img 
-                                    src={logo} 
-                                    alt="CampusMart Logo" 
-                                    className="h-10 w-10 sm:h-16 sm:w-16 object-contain mt-4" 
-                                />
-                                <p className="text-xl sm:text-2xl font-bold text-gray-800 hover:text-gray-600 transition-colors">
-                                    Campus<span className="text-[#137FEC]">Mart</span>
-                                </p>
-                            </Link>
+                            <BrandLogo to="/dashboard" />
                         </div>
 
                         {/* Search Bar - Hidden on mobile */}
@@ -134,16 +125,7 @@ export default function Navbar({ variant = "default" }) {
                 <div className="flex items-center justify-between h-16">
                    {/* Logo and Brand */}
                     <div className="shrink-0">
-                        <Link to="/dashboard" className="flex items-center space-x-1">
-                            <img 
-                                src={logo} 
-                                alt="CampusMart Logo" 
-                                className="h-10 w-10 sm:h-16 sm:w-16 object-contain mt-4" 
-                            />
-                            <p className="text-xl sm:text-2xl font-bold text-gray-800 hover:text-gray-600 transition-colors">
-                                Campus<span className="text-[#137FEC]">Mart</span>
-                            </p>
-                        </Link>
+                        <BrandLogo to="/dashboard" />
                     </div>
 
                     {/* Desktop Navigation Links */}
