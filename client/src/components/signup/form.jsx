@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ProgressBar from "./progressBar";
 import { signupUser } from '../../api/auth';
+import BrandLogo from '../BrandLogo';
 
 export default function SignUpForm() {
   const navigate = useNavigate();
@@ -55,16 +56,24 @@ export default function SignUpForm() {
     };
 
     return (
-        <div className="container-main flex flex-col items-center justify-center w-full h-full px-4 py-10">
+        <div className="container-main flex flex-col items-center justify-center w-full px-4 py-6 sm:py-10">
+            <BrandLogo
+                to="/"
+                stacked
+                className="mb-4 sm:mb-6"
+                iconClassName="h-10 w-10 sm:h-12 sm:w-12"
+                textClassName="text-xl sm:text-2xl"
+            />
+
             {/* Progress Bar */}
              <div className="w-full bg-white mb-2">
-                <div className="max-w-2xl mx-auto px-4 py-6">
+                <div className="max-w-2xl mx-auto px-1 sm:px-4 py-4 sm:py-6">
                     <ProgressBar currentStep={1} />
                 </div>
             </div>
 
-            <div className="border border-gray-300 rounded-2xl p-8 w-2xl max-w-3xl shadow-lg">
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Step 1: Account Details</h2>
+            <div className="w-full max-w-3xl border border-gray-300 rounded-xl sm:rounded-2xl p-4 sm:p-8 shadow-lg">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Step 1: Account Details</h2>
                 <p className="text-gray-600 mb-6">Let's get started with your basic information.</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -75,7 +84,7 @@ export default function SignUpForm() {
                     )}
 
                     {/* 2-Column Grid Layout */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                         {/* Left Column - 3 Fields */}
                         <div className="space-y-4">
                             {/* Full Name */}
@@ -209,7 +218,7 @@ export default function SignUpForm() {
                 </p>
             </div>
             <div>
-                <div className="mt-8 flex flex-row justify-center items-center gap-6 text-gray-500 text-sm">
+                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-6 text-gray-500 text-sm">
                     <p className="flex items-center">
                         <span className="mr-1 text-[#137FEC]">✓</span> 
                         Verified Student

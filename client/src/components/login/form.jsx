@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import secLogo from "../../assets/sec-logo.svg";
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser } from '../../api/auth';
+import BrandLogo from '../BrandLogo';
 
 export default function LoginForm() {
     const navigate = useNavigate();
@@ -30,14 +30,16 @@ export default function LoginForm() {
     };
 
     return (
-        <div className="container-main flex flex-col items-center justify-center w-full h-full px-4 py-10">
+        <div className="container-main flex flex-col items-center justify-center w-full px-4 py-8 lg:py-12">
             {/* Added border container */}
             <div className="border border-gray-300 rounded-2xl p-8 w-full max-w-md shadow-lg">
                 <div className="login-header flex flex-col items-center justify-center mb-6">
-                    <img 
-                        src={secLogo} 
-                        alt="SEC Logo" 
-                        className="sec-logo w-16 h-16 mb-4" 
+                    <BrandLogo
+                        to="/"
+                        stacked
+                        className="mb-4"
+                        iconClassName="h-12 w-12"
+                        textClassName="text-2xl"
                     />
                     <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
                     <p className="text-gray-600 mt-2">Log in to the verified student marketplace</p>
@@ -93,7 +95,7 @@ export default function LoginForm() {
                         </div>
                         
                         <div className="text-sm">
-                            <Link to="/signup" className="text-blue-600 hover:text-blue-800">
+                            <Link to="/forgot-password" className="text-blue-600 hover:text-blue-800">
                                 Forgot password?
                             </Link>
                         </div>

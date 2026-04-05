@@ -26,6 +26,13 @@ export const loginUser = async ({ email, password }) => {
   };
 };
 
+export const getCurrentUser = async ({ token }) => {
+  return apiRequest("/auth/me", {
+    method: "GET",
+    token,
+  });
+};
+
 export const verifyEmailToken = async (token) => {
   return apiRequest("/auth/verify-email", {
     method: "POST",
@@ -60,6 +67,20 @@ export const completeProfile = async ({ token, bio }) => {
     method: "PATCH",
     token,
     body: { bio },
+  });
+};
+
+export const forgotPassword = async (email) => {
+  return apiRequest("/auth/forgot-password", {
+    method: "POST",
+    body: { email },
+  });
+};
+
+export const resetPassword = async ({ token, newPassword, confirmPassword }) => {
+  return apiRequest("/auth/reset-password", {
+    method: "POST",
+    body: { token, newPassword, confirmPassword },
   });
 };
 

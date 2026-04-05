@@ -8,6 +8,24 @@ const { sendSuccess, sendError } = require('../utils/response');
 const JWT_EXPIRES_IN = '7d';
 const SCHOOL_EMAIL_DOMAIN = '@st.ug.edu.gh';
 const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_TTL_MS = 1 * 60 * 60 * 1000; // 1 hour
+
+const parseBooleanEnv = (value, fallback = false) => {
+	if (typeof value !== 'string') {
+		return fallback;
+	}
+
+	const normalized = value.trim().toLowerCase();
+	if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+		return true;
+	}
+
+	if (['0', 'false', 'no', 'off'].includes(normalized)) {
+		return false;
+	}
+
+	return fallback;
+};
 
 const isSchoolEmail = (email) => {
 	if (!email || typeof email !== 'string') {
@@ -46,6 +64,20 @@ const createEmailVerificationToken = () => {
 	};
 };
 
+const getPasswordResetTokenHash = token => {
+	return crypto.createHash('sha256').update(token).digest('hex');
+};
+
+const createPasswordResetToken = () => {
+	const token = crypto.randomBytes(32).toString('hex');
+
+	return {
+		token,
+		tokenHash: getPasswordResetTokenHash(token),
+		expiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS),
+	};
+};
+
 const createSmtpTransport = () => {
 	const host = process.env.SMTP_HOST;
 	const port = Number.parseInt(process.env.SMTP_PORT, 10);
@@ -53,46 +85,306 @@ const createSmtpTransport = () => {
 	const pass = process.env.SMTP_PASS;
 
 	if (!host || Number.isNaN(port) || !user || !pass) {
-		return null;
+		const error = new Error('SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS.');
+		error.statusCode = 500;
+		throw error;
 	}
 
 	let nodemailer;
 	try {
 		nodemailer = require('nodemailer');
 	} catch (error) {
-		return null;
+		const moduleError = new Error('Nodemailer is not available. Install dependencies and restart the server.');
+		moduleError.statusCode = 500;
+		throw moduleError;
 	}
+
+	const secure = parseBooleanEnv(process.env.SMTP_SECURE, port === 465);
+	const rejectUnauthorized = parseBooleanEnv(process.env.SMTP_REJECT_UNAUTHORIZED, true);
+	const requireTLS = parseBooleanEnv(process.env.SMTP_REQUIRE_TLS, port === 587);
 
 	return nodemailer.createTransport({
 		host,
 		port,
-		secure: port === 465,
+		secure,
+		requireTLS,
 		auth: {
 			user,
 			pass,
 		},
+		...(rejectUnauthorized ? {} : { tls: { rejectUnauthorized: false } }),
 	});
 };
 
-const sendEmailVerificationMessage = async ({ recipientEmail, token }) => {
+const resolveSmtpFrom = () => {
+	const configuredFrom = (process.env.SMTP_FROM || '').trim();
+	if (!configuredFrom) {
+		return process.env.SMTP_USER;
+	}
+
+	if (configuredFrom.includes('<') && configuredFrom.includes('>')) {
+		return configuredFrom;
+	}
+
+	const emailMatch = configuredFrom.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+	if (!emailMatch) {
+		return process.env.SMTP_USER;
+	}
+
+	const email = emailMatch[0];
+	const displayName = configuredFrom.replace(email, '').replace(/[<>\"]/g, '').trim();
+
+	return displayName ? `${displayName} <${email}>` : email;
+};
+
+const sendEmailVerificationMessage = async ({ recipientEmail, recipientFullName, token }) => {
 	const transport = createSmtpTransport();
 
-	if (!transport) {
-		return { skipped: true };
+	if (typeof transport.verify === 'function') {
+		try {
+			await transport.verify();
+		} catch (error) {
+			const smtpError = new Error(`SMTP verification failed: ${error.message}`);
+			smtpError.statusCode = 500;
+			throw smtpError;
+		}
 	}
 
 	const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5000';
 	const verifyUrl = `${baseUrl.replace(/\/$/, '')}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
+	const safeName = typeof recipientFullName === 'string' && recipientFullName.trim()
+		? recipientFullName.trim()
+		: 'there';
 
-	await transport.sendMail({
-		from: process.env.SMTP_FROM || process.env.SMTP_USER,
-		to: recipientEmail,
-		subject: 'Verify your Campus Mart account',
-		text: `Welcome to Campus Mart. Verify your account: ${verifyUrl}`,
-		html: `<p>Welcome to Campus Mart.</p><p>Verify your account: <a href="${verifyUrl}">${verifyUrl}</a></p>`,
-	});
+	try {
+		const info = await transport.sendMail({
+			from: resolveSmtpFrom(),
+			to: recipientEmail,
+			subject: 'Welcome to Campus Mart! Confirm your email',
+			text: `Hi ${safeName}!
 
-	return { skipped: false };
+Let's get you started by verifying your email. Just click the link below to confirm your account:
+${verifyUrl}
+
+This link expires in 24 hours.
+
+Questions? We're here to help!`,
+			html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; border-radius: 8px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .logo { font-size: 24px; font-weight: bold; color: #137FEC; margin-bottom: 10px; }
+    .content { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .greeting { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 15px; }
+    .message { color: #555; margin-bottom: 20px; }
+    .cta-button { display: inline-block; background-color: #137FEC; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+    .cta-button:hover { background-color: #0d5bb8; }
+    .link-fallback { color: #137FEC; word-break: break-all; }
+    .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+    .expiry { background-color: #fffbeb; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0; color: #92400e; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+			<div class="logo">CampusMart</div>
+    </div>
+    
+    <div class="content">
+			<p class="greeting">Hi ${safeName},</p>
+      
+      <p class="message">
+        Let's get you started by verifying your email. Just click the button below to confirm your account:
+      </p>
+      
+      <center>
+        <a href="${verifyUrl}" class="cta-button">Verify My Email</a>
+      </center>
+      
+      <p class="message" style="text-align: center; color: #999; font-size: 14px;">
+        Or copy and paste this link in your browser:
+      </p>
+      <p style="text-align: center; color: #137FEC; word-break: break-all; font-size: 12px;">
+        ${verifyUrl}
+      </p>
+      
+      <div class="expiry">
+        ⏱️ <strong>This link expires in 24 hours.</strong> If you need a new verification link, you can request one from the login page.
+      </div>
+      
+      <p class="message">
+        Questions? We're here to help! If you didn't create this account, you can ignore this email.
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>© 2026 Campus Mart. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+`,
+		});
+
+		const acceptedRecipients = Array.isArray(info?.accepted)
+			? info.accepted.map(value => String(value).toLowerCase())
+			: [];
+		const recipientAccepted = acceptedRecipients.includes(String(recipientEmail).toLowerCase());
+
+		if (!recipientAccepted) {
+			const rejectedRecipients = Array.isArray(info?.rejected)
+				? info.rejected.map(value => String(value)).join(', ')
+				: 'unknown';
+			const partialFailure = new Error(`SMTP did not accept recipient ${recipientEmail}. Rejected: ${rejectedRecipients}`);
+			partialFailure.statusCode = 500;
+			throw partialFailure;
+		}
+
+		return {
+			messageId: info?.messageId || null,
+			accepted: Array.isArray(info?.accepted) ? info.accepted : [],
+			rejected: Array.isArray(info?.rejected) ? info.rejected : [],
+			response: info?.response || null,
+		};
+	} catch (error) {
+		const sendError = new Error(`Failed to send verification email: ${error.message}`);
+		sendError.statusCode = 500;
+		throw sendError;
+	}
+};
+
+const sendPasswordResetEmail = async ({ recipientEmail, token }) => {
+	const transport = createSmtpTransport();
+
+	if (typeof transport.verify === 'function') {
+		try {
+			await transport.verify();
+		} catch (error) {
+			const smtpError = new Error(`SMTP verification failed: ${error.message}`);
+			smtpError.statusCode = 500;
+			throw smtpError;
+		}
+	}
+
+	const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5000';
+	const resetUrl = `${baseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
+
+	try {
+		const info = await transport.sendMail({
+			from: resolveSmtpFrom(),
+			to: recipientEmail,
+			subject: 'Reset your Campus Mart password',
+			text: `Hi there! 🔐
+
+We received a request to reset your Campus Mart password. Click the link below to set a new password:
+${resetUrl}
+
+This link expires in 1 hour. For security, we never share passwords via email.
+
+If you didn't request this reset, you can ignore this email and your password will remain unchanged. No action needed!
+
+Have questions? We're here to help!`,
+			html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; border-radius: 8px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .logo { font-size: 24px; font-weight: bold; color: #137FEC; margin-bottom: 10px; }
+    .content { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .greeting { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 15px; }
+    .message { color: #555; margin-bottom: 20px; }
+    .cta-button { display: inline-block; background-color: #137FEC; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+    .cta-button:hover { background-color: #0d5bb8; }
+    .link-fallback { color: #137FEC; word-break: break-all; }
+    .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+    .expiry { background-color: #fee2e2; padding: 15px; border-left: 4px solid #ef4444; margin: 20px 0; color: #7f1d1d; font-size: 14px; }
+    .security-note { background-color: #dbeafe; padding: 15px; border-left: 4px solid #0284c7; margin: 20px 0; color: #0c2d6b; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🎓 Campus Mart</div>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">Hi there! 🔐</p>
+      
+      <p class="message">
+        We received a request to reset your Campus Mart password. Click the button below to set a new password:
+      </p>
+      
+      <center>
+        <a href="${resetUrl}" class="cta-button">Reset My Password</a>
+      </center>
+      
+      <p class="message" style="text-align: center; color: #999; font-size: 14px;">
+        Or copy and paste this link in your browser:
+      </p>
+      <p style="text-align: center; color: #137FEC; word-break: break-all; font-size: 12px;">
+        ${resetUrl}
+      </p>
+      
+      <div class="expiry">
+        ⏱️ <strong>This link expires in 1 hour.</strong> If it expires, you can request a new password reset link from the login page.
+      </div>
+      
+      <div class="security-note">
+        🔒 <strong>Security Note:</strong> We never share passwords via email. You'll create your new password on our secure page.
+      </div>
+      
+      <p class="message">
+        <strong>Didn't request this?</strong> No worries! You can ignore this email and your password will remain unchanged. No action needed on your part.
+      </p>
+      
+      <p class="message">
+        Questions? We're here to help!
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>© 2026 Campus Mart. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+`,
+		});
+
+		const acceptedRecipients = Array.isArray(info?.accepted)
+			? info.accepted.map(value => String(value).toLowerCase())
+			: [];
+		const recipientAccepted = acceptedRecipients.includes(String(recipientEmail).toLowerCase());
+
+		if (!recipientAccepted) {
+			const rejectedRecipients = Array.isArray(info?.rejected)
+				? info.rejected.map(value => String(value)).join(', ')
+				: 'unknown';
+			const partialFailure = new Error(`SMTP did not accept recipient ${recipientEmail}. Rejected: ${rejectedRecipients}`);
+			partialFailure.statusCode = 500;
+			throw partialFailure;
+		}
+
+		return {
+			messageId: info?.messageId || null,
+			accepted: Array.isArray(info?.accepted) ? info.accepted : [],
+			rejected: Array.isArray(info?.rejected) ? info.rejected : [],
+			response: info?.response || null,
+		};
+	} catch (error) {
+		const sendError = new Error(`Failed to send password reset email: ${error.message}`);
+		sendError.statusCode = 500;
+		throw sendError;
+	}
 };
 
 const ensureEmailVerified = user => {
@@ -148,8 +440,9 @@ const signup = async (req, res, next) => {
 			});
 		}
 
-		await sendEmailVerificationMessage({
+		const emailDelivery = await sendEmailVerificationMessage({
 			recipientEmail: user.email,
+			recipientFullName: user.fullName,
 			token: verificationToken,
 		});
 
@@ -159,7 +452,10 @@ const signup = async (req, res, next) => {
 			statusCode: 201,
 			message: 'Signup successful',
 			data: serializeUser(user),
-			extras: { token },
+			extras: {
+				token,
+				...(process.env.NODE_ENV !== 'production' && { emailDelivery }),
+			},
 		});
 	} catch (error) {
 		return next(error);
@@ -360,6 +656,88 @@ const completeProfile = async (req, res, next) => {
 	}
 };
 
+const forgotPassword = async (req, res, next) => {
+	try {
+		const { email } = req.body;
+
+		if (!email || typeof email !== 'string') {
+			return sendError(res, { statusCode: 400, message: 'Email is required' });
+		}
+
+		if (!isSchoolEmail(email)) {
+			return sendError(res, { statusCode: 400, message: 'Email must end with @st.ug.edu.gh' });
+		}
+
+		const user = await User.findOne({ email: email.toLowerCase() });
+
+		if (!user) {
+			// Don't leak whether email exists; return success anyway for security
+			return sendSuccess(res, {
+				message: 'If an account exists with that email, a password reset link has been sent.',
+			});
+		}
+
+		const { token: resetToken, tokenHash, expiresAt } = createPasswordResetToken();
+		user.passwordResetTokenHash = tokenHash;
+		user.passwordResetTokenExpiresAt = expiresAt;
+		await user.save();
+
+		await sendPasswordResetEmail({
+			recipientEmail: user.email,
+			token: resetToken,
+		});
+
+		return sendSuccess(res, {
+			message: 'Password reset link sent to your email (valid for 1 hour)',
+		});
+	} catch (error) {
+		return next(error);
+	}
+};
+
+const resetPassword = async (req, res, next) => {
+	try {
+		const { token, newPassword, confirmPassword } = req.body;
+
+		if (!token || typeof token !== 'string') {
+			return sendError(res, { statusCode: 400, message: 'Reset token is required' });
+		}
+
+		if (!newPassword || !confirmPassword) {
+			return sendError(res, { statusCode: 400, message: 'New password and confirmation are required' });
+		}
+
+		if (newPassword !== confirmPassword) {
+			return sendError(res, { statusCode: 400, message: 'Passwords do not match' });
+		}
+
+		if (newPassword.length < 6) {
+			return sendError(res, { statusCode: 400, message: 'Password must be at least 6 characters' });
+		}
+
+		const tokenHash = getPasswordResetTokenHash(token.trim());
+		const user = await User.findOne({
+			passwordResetTokenHash: tokenHash,
+			passwordResetTokenExpiresAt: { $gt: new Date() },
+		});
+
+		if (!user) {
+			return sendError(res, { statusCode: 400, message: 'Password reset token is invalid or expired' });
+		}
+
+		user.password = newPassword;
+		user.passwordResetTokenHash = null;
+		user.passwordResetTokenExpiresAt = null;
+		await user.save();
+
+		return sendSuccess(res, {
+			message: 'Password reset successfully',
+		});
+	} catch (error) {
+		return next(error);
+	}
+};
+
 module.exports = {
 	signup,
 	login,
@@ -368,5 +746,7 @@ module.exports = {
 	uploadStudentId,
 	uploadProfileImage,
 	completeProfile,
+	forgotPassword,
+	resetPassword,
 };
 

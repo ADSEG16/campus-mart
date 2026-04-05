@@ -4,6 +4,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ListingsProvider, WatchlistProvider } from "./context";
 import Login from "./pages/login";
 import Signup from "./pages/signup";
+import ForgotPassword from "./pages/forgot-password";
+import ResetPassword from "./pages/reset-password";
 import Verification from "./components/signup/verification";
 import ProfileSetup from "./components/signup/profileSetup";
 import Dashboard from "./pages/dashboard";
@@ -28,7 +30,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <BackToTopButton />
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/signup/verification" element={<Verification />} />
         <Route path="/signup/profileSetup" element={<ProfileSetup />} />
         <Route element={<ProtectedRoute />}>

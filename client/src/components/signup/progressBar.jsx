@@ -19,7 +19,7 @@ const HorizontalProgressBar = ({ currentStep = 1 }) => {
                 {/* Step 1 - Account details */}
                 <div className="relative flex flex-col items-center">
                     <div className="bg-white p-1 rounded-full">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
                             currentStep >= 1 
                                 ? 'bg-blue-600 border-2 border-blue-600' 
                                 : 'bg-white border-2 border-gray-300'
@@ -35,7 +35,7 @@ const HorizontalProgressBar = ({ currentStep = 1 }) => {
                             )}
                         </div>
                     </div>
-                    <span className={`text-xs sm:text-sm font-medium mt-3 text-center ${
+                    <span className={`text-[11px] sm:text-sm font-medium mt-2 sm:mt-3 text-center ${
                         currentStep >= 1 ? 'text-blue-600' : 'text-gray-500'
                     }`}>
                         Account Details
@@ -45,7 +45,7 @@ const HorizontalProgressBar = ({ currentStep = 1 }) => {
                 {/* Step 2 - Verification */}
                 <div className="relative flex flex-col items-center">
                     <div className="bg-white p-1 rounded-full">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
                             currentStep >= 2 
                                 ? 'bg-blue-600 border-2 border-blue-600' 
                                 : 'bg-white border-2 border-gray-300'
@@ -61,7 +61,7 @@ const HorizontalProgressBar = ({ currentStep = 1 }) => {
                             )}
                         </div>
                     </div>
-                    <span className={`text-xs sm:text-sm font-medium mt-3 text-center ${
+                    <span className={`text-[11px] sm:text-sm font-medium mt-2 sm:mt-3 text-center ${
                         currentStep >= 2 ? 'text-blue-600' : 'text-gray-500'
                     }`}>
                         Verification
@@ -71,7 +71,7 @@ const HorizontalProgressBar = ({ currentStep = 1 }) => {
                 {/* Step 3 - Profile Setup */}
                 <div className="relative flex flex-col items-center">
                     <div className="bg-white p-1 rounded-full">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
                             currentStep >= 3 
                                 ? 'bg-blue-600 border-2 border-blue-600' 
                                 : 'bg-white border-2 border-gray-300'
@@ -87,7 +87,7 @@ const HorizontalProgressBar = ({ currentStep = 1 }) => {
                             )}
                         </div>
                     </div>
-                    <span className={`text-xs sm:text-sm font-medium mt-3 text-center ${
+                    <span className={`text-[11px] sm:text-sm font-medium mt-2 sm:mt-3 text-center ${
                         currentStep >= 3 ? 'text-blue-600' : 'text-gray-500'
                     }`}>
                         Profile Setup
@@ -96,7 +96,7 @@ const HorizontalProgressBar = ({ currentStep = 1 }) => {
             </div>
 
             {/* Optional: Step description for better UX */}
-            <div className="flex justify-between mt-2 px-2">
+            <div className="hidden sm:flex justify-between mt-2 px-2">
                 <div className="text-[10px] sm:text-xs text-gray-500 text-center w-20">
                     {currentStep === 1 && 'Basic information'}
                     {currentStep > 1 && 'Completed'}
