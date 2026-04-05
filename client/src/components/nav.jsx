@@ -8,6 +8,7 @@ const CampusNavbar = () => {
   const location = useLocation();
   const [searchText, setSearchText] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // initialize from query param so input reflects current search
   React.useEffect(() => {
@@ -20,14 +21,14 @@ const CampusNavbar = () => {
     e.preventDefault();
     const query = searchText.trim();
     if (!query) return;
-    // keep existing path but replace query param
-    navigate(`${location.pathname}?q=${encodeURIComponent(query)}`);
+    navigate(`/dashboard?q=${encodeURIComponent(query)}`);
   };
 
   return (
-    <nav className="w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm">
-      {/* Logo with image */}
-      <div className="flex items-center space-x-2">
+    <nav className="w-full bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-3 flex items-center justify-between gap-4">
+      {/* Logo */}
+      <Link to="/marketplace" className="flex items-center space-x-2 shrink-0">
         {/* Campus logo SVG */}
         <svg 
           className="h-8 w-8 text-blue-600" 
@@ -36,11 +37,11 @@ const CampusNavbar = () => {
         >
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
         </svg>
-        <p className="text-xl font-bold text-black">Campus<span className="text-blue-500">Mart</span></p>
-      </div>
+        <p className="text-lg sm:text-xl font-bold text-black">Campus<span className="text-blue-500">Mart</span></p>
+      </Link>
 
-      {/* Search Bar */}
-      <div className="flex-1 max-w-xl mx-8">
+      {/* Search Bar Desktop */}
+      <div className="hidden md:block flex-1 max-w-xl mx-4">
         <form onSubmit={handleSearch} className="relative">
           <input
             type="text"
@@ -66,15 +67,25 @@ const CampusNavbar = () => {
         </form>
       </div>
 
-      {/* Right side: Browse, Safety, Icons, and Post Item */}
-      <div className="flex items-center space-x-6">
+      {/* Desktop Links */}
+      <div className="hidden md:flex items-center space-x-5">
+        {location.pathname !== "/marketplace" && (
+          <NavLink
+            to="/marketplace"
+            className={({ isActive }) =>
+              `text-sm font-medium hover:text-blue-500 ${isActive ? 'text-blue-600' : 'text-gray-700'}`
+            }
+          >
+            Marketplace
+          </NavLink>
+        )}
         <NavLink
-          to="/dashboard"
+          to="/watchlist"
           className={({ isActive }) =>
             `text-sm font-medium hover:text-blue-500 ${isActive ? 'text-blue-600' : 'text-gray-700'}`
           }
         >
-          Browse
+          Watchlist
         </NavLink>
         <NavLink
           to="/safety"
@@ -115,9 +126,7 @@ const CampusNavbar = () => {
           )}
         </div>
 
-        {/* Post Item Button */}
-        <Link to="/post-item">
-        <button className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-full transition-colors">
+        <Link to="/post-item" className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-full transition-colors">
           {/* Plus icon */}
           <svg 
             className="h-4 w-4" 
@@ -133,11 +142,9 @@ const CampusNavbar = () => {
             />
           </svg>
           <span>Post Item</span>
-        </button>
         </Link>
 
-         {/* Profile Icon */}
-        <button className="text-gray-600 hover:text-black">
+        <Link to="/settings" className="text-gray-600 hover:text-black">
           <svg 
             className="h-5 w-5" 
             fill="none" 
@@ -151,8 +158,97 @@ const CampusNavbar = () => {
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
             />
           </svg>
+        </Link>
+      </div>
+
+      {/* Mobile toggles */}
+      <div className="flex md:hidden items-center gap-3">
+        <button
+          onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+          className="p-0 text-gray-700"
+          aria-label="Toggle navigation"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
         </button>
       </div>
+      </div>
+
+      {/* Mobile Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Close navigation drawer"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          <div className="absolute right-0 top-0 h-full w-[82vw] max-w-sm bg-white shadow-2xl p-5 overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">Menu</span>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-0 text-gray-700"
+                aria-label="Close navigation drawer"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSearch} className="relative mb-5">
+              <input
+                type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search products..."
+                className="w-full border border-gray-300 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-gray-400"
+              />
+              <svg
+                className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </form>
+
+            <div className="space-y-2">
+              <NavLink to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                Dashboard
+              </NavLink>
+              {location.pathname !== "/marketplace" && (
+                <NavLink to="/marketplace" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                  Marketplace
+                </NavLink>
+              )}
+              <NavLink to="/watchlist" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                Watchlist
+              </NavLink>
+              <NavLink to="/messages" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                Messages
+              </NavLink>
+              <NavLink to="/settings" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                Settings
+              </NavLink>
+              <NavLink to="/safety" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                Safety
+              </NavLink>
+              <Link to="/post-item" onClick={() => setIsMobileMenuOpen(false)} className="block text-center px-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium mt-4">
+                Post Item
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

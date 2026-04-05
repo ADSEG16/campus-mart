@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useParams } from "react-router-dom";
 import { 
   MapPin,
   Download,
@@ -11,110 +12,52 @@ import {
 } from "lucide-react";
 import SellerRatingPopup from "../popup-rating";
 import ReceiptPopup from "../receipt-popup";
+import { getStoredAuthToken } from "../../api/http";
+import { getOrderById, mapOrderToDetails, submitOrderReview } from "../../api/orders";
 
 const TransactionDetails = ({ 
   transactionId, 
   isSheet = false,
   onRatingPopupOpen // Prop to notify parent when rate seller is clicked
 }) => {
+  const params = useParams();
+  const activeTransactionId = transactionId || params.id;
   const [transaction, setTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const [showReceiptPopup, setShowReceiptPopup] = useState(false);
 
-  // Mock data - In real app, fetch from API using the ID
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      // Mock transaction data based on ID
-      const mockTransactions = {
-        1: {
-          id: "#CM-8829104",
-          title: "Noise Cancelling Headphones",
-          date: "Oct 12, 2024",
-          time: "02:30 PM",
-          paymentMethod: "Cash on Delivery (COD)",
-          seller: "Sarah M.",
-          sellerVerified: true,
-          price: "GHC45.00",
-          status: "Completed",
-          cancelled: false,
-          image: null,
-          progress: [
-            { step: "Interest Confirmed", date: "Oct 10, 2024", time: "10:15 AM", completed: true },
-            { step: "Meeting Scheduled", date: "Oct 11, 2024", time: "04:20 PM", 
-              note: "Confirmed for Central Library Plaza", completed: true },
-            { step: "Completed", date: "Oct 12, 2024", time: "02:45 PM", completed: true }
-          ],
-          meetingPoint: "LIBRARY NORTH WING"
-        },
-        2: {
-          id: "#CM-8832105",
-          title: "Biology Vol 1. Textbook",
-          date: "Oct 08, 2024",
-          time: "03:15 PM",
-          paymentMethod: "Cash on Delivery (COD)",
-          seller: "David L.",
-          sellerVerified: true,
-          price: "GHC120.00",
-          status: "Completed",
-          cancelled: false,
-          image: null,
-          progress: [
-            { step: "Interest Confirmed", date: "Oct 06, 2024", time: "11:30 AM", completed: true },
-            { step: "Meeting Scheduled", date: "Oct 07, 2024", time: "02:00 PM", 
-              note: "Confirmed at Student Union", completed: true },
-            { step: "Completed", date: "Oct 08, 2024", time: "03:30 PM", completed: true }
-          ],
-          meetingPoint: "STUDENT UNION - 2ND FLOOR"
-        },
-        3: {
-          id: "#CM-8843901",
-          title: "Study Desk Lamp",
-          date: "Sept 24, 2024",
-          time: "01:00 PM",
-          paymentMethod: "Cash on Delivery (COD)",
-          seller: "Ryan K.",
-          sellerVerified: false,
-          price: "GHC15.00",
-          status: "Cancelled",
-          cancelled: true,
-          image: null,
-          progress: [
-            { step: "Interest Confirmed", date: "Sept 22, 2024", time: "09:45 AM", completed: true },
-            { step: "Meeting Scheduled", date: "Sept 23, 2024", time: "11:30 AM", 
-              note: "Scheduled at Library", completed: true },
-            { step: "Cancelled", date: "Sept 24, 2024", time: "12:15 PM", 
-              note: "Buyer cancelled", completed: false }
-          ],
-          meetingPoint: "LIBRARY - STUDY ROOM 3"
-        },
-        4: {
-          id: "#CM-8856723",
-          title: "Dorm Mini Fridge",
-          date: "Sept 15, 2024",
-          time: "04:30 PM",
-          paymentMethod: "Cash on Delivery (COD)",
-          seller: "Jordan W.",
-          sellerVerified: false,
-          price: "GHC85.00",
-          status: "Completed",
-          cancelled: false,
-          image: null,
-          progress: [
-            { step: "Interest Confirmed", date: "Sept 13, 2024", time: "02:20 PM", completed: true },
-            { step: "Meeting Scheduled", date: "Sept 14, 2024", time: "10:00 AM", 
-              note: "Confirmed at North Campus", completed: true },
-            { step: "Completed", date: "Sept 15, 2024", time: "04:45 PM", completed: true }
-          ],
-          meetingPoint: "NORTH CAMPUS - PARKING LOT B"
-        }
-      };
+    const loadTransaction = async () => {
+      if (!activeTransactionId) {
+        setLoading(false);
+        return;
+      }
 
-      setTransaction(mockTransactions[transactionId] || mockTransactions[1]);
-      setLoading(false);
-    }, 300);
-  }, [transactionId]);
+      const authToken = getStoredAuthToken();
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+
+      if (!authToken) {
+        setErrorMessage("Please login to view transaction details.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setErrorMessage("");
+        const order = await getOrderById({ token: authToken, orderId: activeTransactionId });
+        setTransaction(mapOrderToDetails(order, currentUser?._id));
+      } catch (error) {
+        setErrorMessage(error.message || "Failed to load transaction details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTransaction();
+  }, [activeTransactionId]);
 
   const handleRateSeller = () => {
     // If parent has callback, use it
@@ -130,9 +73,19 @@ const TransactionDetails = ({
     setShowRatingPopup(false);
   };
 
-  const handleSubmitRating = (ratingData) => {
-    console.log("Rating submitted:", ratingData);
-    setShowRatingPopup(false);
+  const handleSubmitRating = async (ratingData) => {
+    try {
+      const authToken = getStoredAuthToken();
+      await submitOrderReview({
+        token: authToken,
+        orderId: activeTransactionId,
+        rating: ratingData.rating,
+        comment: ratingData.review,
+      });
+      setShowRatingPopup(false);
+    } catch (error) {
+      alert(error.message || "Failed to submit rating");
+    }
   };
 
   const handleDownloadReceipt = () => {
@@ -153,9 +106,7 @@ const TransactionDetails = ({
 
   if (!transaction) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        Transaction not found
-      </div>
+      <div className="text-center py-12 text-gray-500">{errorMessage || "Transaction not found"}</div>
     );
   }
 
@@ -309,7 +260,7 @@ const TransactionDetails = ({
       {/* Receipt Popup - Rendered with Portal to ensure full-screen centering */}
       {showReceiptPopup && createPortal(
         <ReceiptPopup 
-          transactionId={transactionId}
+          transactionId={activeTransactionId}
           onClose={handleCloseReceiptPopup}
           onDownload={() => console.log("Downloading receipt...")}
           onPrint={() => window.print()}

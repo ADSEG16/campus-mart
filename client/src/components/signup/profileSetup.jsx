@@ -3,11 +3,16 @@ import ProgressBar from "./progressBar";
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../navbar';
 import Footer from '../footer';
+import { completeProfile, uploadProfileImage } from '../../api/auth';
+import { getStoredAuthToken } from '../../api/http';
 
 export default function Profile() {
 		const navigate = useNavigate();	
     const [profileImage, setProfileImage] = useState(null);
     const [previewUrl, setPreviewUrl] = useState('');
+    const [bio, setBio] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -28,12 +33,34 @@ export default function Profile() {
         document.getElementById('profilePicture').value = '';
     };
 
-		const handleCompleteRegistration = () => {
-			// Here you would typically send the profile data to your backend API
-			// For this example, we'll just log it and navigate to a success page or dashboard
-			console.log('Profile Image:', profileImage);
-			// You can also include other profile data like bio, etc.
-			navigate('/dashboard');
+        const handleCompleteRegistration = async () => {
+            setErrorMessage('');
+            const authToken = getStoredAuthToken();
+
+            if (!authToken) {
+                setErrorMessage('Session expired. Please sign up again.');
+                navigate('/signup');
+                return;
+            }
+
+            try {
+                setIsSubmitting(true);
+
+                if (profileImage) {
+                    await uploadProfileImage({ token: authToken, file: profileImage });
+                }
+
+                const response = await completeProfile({ token: authToken, bio });
+                if (response?.data) {
+                    localStorage.setItem('currentUser', JSON.stringify(response.data));
+                }
+
+                navigate('/dashboard');
+            } catch (error) {
+                setErrorMessage(error.message || 'Failed to complete profile setup');
+            } finally {
+                setIsSubmitting(false);
+            }
 		};
 
 		const handleBackToStep2 = () => {
@@ -56,6 +83,12 @@ export default function Profile() {
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Step 3: Profile Setup</h2>
                     <p className="text-gray-600 mb-6">Let the community know a little bit about you.</p>
                 </div>
+
+				{errorMessage && (
+					<div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+						{errorMessage}
+					</div>
+				)}
                 
                 <form className="space-y-6">
                     {/* Profile Picture Upload - Circular Design */}
@@ -155,6 +188,8 @@ export default function Profile() {
                             name="bio"
                             placeholder="E.g. Senior CS student, selling mostly tech gear and textbooks. Quick to respond!"
                             rows="4"
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value.slice(0, 200))}
                             className='w-full px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none'
                         />
                         <p className="text-xs text-gray-500 mt-1">
@@ -170,8 +205,9 @@ export default function Profile() {
                     <button 
 										type='submit'
 										onClick={handleCompleteRegistration}
+                                    disabled={isSubmitting}
 										className="mt-6 w-full bg-blue-600 text-white py-3 rounded-2xl hover:bg-blue-700 transition-colors duration-300 font-medium">
-                        Complete Registration
+                                    {isSubmitting ? 'Saving Profile...' : 'Complete Registration'}
                     </button>
                     <button 
 										type="button"

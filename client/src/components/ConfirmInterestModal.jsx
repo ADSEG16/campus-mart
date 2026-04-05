@@ -1,6 +1,7 @@
 import { X, ShoppingCart, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 
-export default function ConfirmInterestModal({ onClose, onConfirm }) {
+export default function ConfirmInterestModal({ product, onClose, onConfirm }) {
     const handleProceed = () => {
         if (onConfirm) {
             onConfirm();
@@ -27,17 +28,21 @@ export default function ConfirmInterestModal({ onClose, onConfirm }) {
                     Confirm Interest
                 </h2>
                 <p className="text-gray-600 text-center mb-6">
-                    You are expressing interest in this item. You will now be connected with the seller to coordinate a safe on-campus meeting and complete the transaction via cash or digital transfer.
+                    You are expressing interest in {product?.title || "this item"}. You will now be connected with the seller to coordinate a safe on-campus meeting and complete the transaction via cash or digital transfer.
                 </p>
 
                 {/* Product Summary */}
                 <div className="flex items-center bg-gray-50 rounded-lg p-4 mb-6">
-                    <div className="w-16 h-16 bg-teal-700 rounded-lg mr-4 flex items-center justify-center">
-                        <div className="text-white text-xs">📊</div>
+                    <div className="w-16 h-16 bg-teal-700 rounded-lg mr-4 flex items-center justify-center overflow-hidden shrink-0">
+                        {product?.images?.[0] ? (
+                            <img src={product.images[0]} alt={product.title || "Selected product"} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="text-white text-xs">📦</div>
+                        )}
                     </div>
                     <div>
-                        <div className="font-semibold text-gray-900">Noise Cancelling Headphones</div>
-                        <div className="text-blue-600 font-bold">$45.00</div>
+                        <div className="font-semibold text-gray-900">{product?.title || "Selected product"}</div>
+                        <div className="text-blue-600 font-bold">{product?.price || ""}</div>
                     </div>
                 </div>
 
@@ -46,7 +51,7 @@ export default function ConfirmInterestModal({ onClose, onConfirm }) {
                     className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors mb-3 flex items-center justify-center cursor-pointer"
                 >
                     <span className="mr-2">💬</span>
-                    Proceed to Chat
+                    Proceed to Chat About {product?.title || "This Item"}
                 </button>
 
                 <button
@@ -59,10 +64,10 @@ export default function ConfirmInterestModal({ onClose, onConfirm }) {
                 {/* Safety Tip */}
                 <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-start">
-                        <Shield className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <Shield className="w-5 h-5 text-blue-600 mr-2 mt-0.5 shrink-0" />
                         <p className="text-sm text-blue-900">
                             <span className="font-semibold">Safety Tip:</span> Always arrange to meet in designated{" "}
-                            <a href="/safety" className="text-blue-600 underline cursor-pointer">Safe Meeting Zones</a> on campus.{" "}
+                            <Link to="/safety" className="text-blue-600 underline cursor-pointer">Safe Meeting Zones</Link> on campus.{" "}
                             <span className="font-semibold">Never share your private student ID details or bank login credentials.</span>
                         </p>
                     </div>

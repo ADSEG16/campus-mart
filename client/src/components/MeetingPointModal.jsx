@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, MapPin, Building, Calendar, Clock, Shield, Plus, Minus } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function MeetingPointModal({ onClose }) {
     const [selectedZone, setSelectedZone] = useState("library");
@@ -52,7 +53,7 @@ export default function MeetingPointModal({ onClose }) {
                         </div>
 
                         {/* Interactive Map Placeholder */}
-                        <div className="bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl h-96 relative overflow-hidden">
+                        <div className="bg-linear-to-br from-teal-400 to-teal-600 rounded-xl h-96 relative overflow-hidden">
                             <div className="absolute inset-0 flex items-center justify-center">
                                 {/* Map pins */}
                                 <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2">
@@ -99,7 +100,7 @@ export default function MeetingPointModal({ onClose }) {
                         <div className="mt-4 text-xs text-gray-500 flex items-center">
                             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                             Map Data Updated: Just Now
-                            <a href="#" className="ml-auto text-blue-600 hover:text-blue-700">Campus Safety Policy</a>
+                            <Link to="/safety" className="ml-auto text-blue-600 hover:text-blue-700">Campus Safety Policy</Link>
                         </div>
                     </div>
 
@@ -114,9 +115,9 @@ export default function MeetingPointModal({ onClose }) {
                         <div className="mb-6">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-sm font-semibold text-gray-700">RECOMMENDED SAFE ZONES</h3>
-                                <a href="/safety" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                <Link to="/safety" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
                                     VIEW ALL
-                                </a>
+                                </Link>
                             </div>
                             <div className="space-y-3">
                                 {safeZones.map((zone) => (
@@ -210,7 +211,7 @@ export default function MeetingPointModal({ onClose }) {
                         {/* Safety Notice */}
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                             <div className="flex items-start">
-                                <Shield className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
+                                <Shield className="w-5 h-5 text-green-600 mr-2 mt-0.5 shrink-0" />
                                 <p className="text-sm text-green-900">
                                     Meeting at a Safe Zone ensures CCTV coverage and high foot traffic for a secure exchange.
                                 </p>

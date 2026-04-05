@@ -119,7 +119,7 @@ const getProductById = async (req, res, next) => {
     const { productId } = req.params;
 
     const product = await Product.findById(productId)
-      .populate('sellerId', '_id email')
+      .populate('sellerId', '_id fullName email trustScore isVerified emailVerified verificationStatus profileImageUrl')
       .select('-__v');
 
     if (!product) {

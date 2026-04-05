@@ -14,11 +14,13 @@ import {
 } from "lucide-react";
 import Nav from "./nav";
 import { useListings } from "../context";
+import { fetchProductRawById, updateProduct } from "../api/products";
+import { getStoredAuthToken } from "../api/http";
 
 const EditItem = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { getListingById, updateListing, updateListingStatus } = useListings();
+  const { refreshListings } = useListings();
   
   const [photos, setPhotos] = useState([]);
   const [existingPhotos, setExistingPhotos] = useState([]);
@@ -33,6 +35,8 @@ const EditItem = () => {
     conditionColor: "green"
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const categories = [
     "Textbooks",
@@ -46,66 +50,51 @@ const EditItem = () => {
 
   const conditions = [
     { label: "New", color: "blue" },
-    { label: "Like New", color: "green" },
-    { label: "Good", color: "green" },
-    { label: "Fair", color: "orange" }
+    { label: "Used", color: "green" }
   ];
 
-  // Load existing listing data - FIXED VERSION
   useEffect(() => {
-    const listing = getListingById(parseInt(id));
-    
-    if (listing) {
-      // Safely format condition string
-      let conditionValue = "";
-      if (listing.condition) {
-        conditionValue = listing.condition.charAt(0).toUpperCase() + 
-                        listing.condition.slice(1).toLowerCase();
+    const loadProduct = async () => {
+      const authToken = getStoredAuthToken();
+      if (!authToken) {
+        navigate("/");
+        return;
       }
 
-      // Use a single update function to batch state updates
-      const initializeData = () => {
+      try {
+        setLoading(true);
+        setErrorMessage("");
+
+        const product = await fetchProductRawById(id);
         setFormData({
-          title: listing.title || "",
-          category: listing.category || "",
-          price: listing.price ? listing.price.replace('GHC', '').replace('$', '').trim() : "",
-          condition: conditionValue,
-          description: listing.description || "",
-          meetingSpot: listing.meetingSpot || "verified",
-          subtitle: listing.subtitle || "",
-          conditionColor: listing.conditionColor || "green"
+          title: product?.title || "",
+          category: product?.category || "",
+          price: product?.price !== undefined ? String(product.price) : "",
+          condition: String(product?.condition || "").toLowerCase() === "new" ? "New" : "Used",
+          description: product?.description || "",
+          meetingSpot: product?.meetingSpot || "verified",
+          subtitle: "",
+          conditionColor: "green",
         });
-        
-        // Handle existing photos
-        if (listing.image) {
-          setExistingPhotos([listing.image]);
-        }
-        
+
+        setExistingPhotos((product?.images || []).map((image) => image.url).filter(Boolean));
+      } catch (error) {
+        setErrorMessage(error.message || "Failed to load listing data");
+      } finally {
         setLoading(false);
-      };
-
-      initializeData();
-    } else {
-      // Item not found, redirect to my listings
-      navigate("/my-listings");
-    }
-  }, [id, getListingById, navigate]); // Removed setLoading from dependencies
-
-  // Map condition to color
-  const getConditionColor = (condition) => {
-    const map = {
-      "New": "blue",
-      "Like New": "green",
-      "Good": "green",
-      "Fair": "orange"
+      }
     };
-    return map[condition] || "gray";
-  };
+
+    loadProduct();
+  }, [id, navigate]);
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
     if (photos.length + existingPhotos.length + files.length <= 5) {
-      const newPhotos = files.map(file => URL.createObjectURL(file));
+      const newPhotos = files.map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
       setPhotos([...photos, ...newPhotos]);
     }
   };
@@ -123,45 +112,100 @@ const EditItem = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Update listing object
-    const updatedListing = {
-      title: formData.title,
-      subtitle: formData.subtitle || "New listing",
-      description: formData.description,
-      price: formData.price ? `GHC ${parseFloat(formData.price).toFixed(0)}` : "GHC 0",
-      condition: formData.condition ? formData.condition.toUpperCase() : "NEW",
-      conditionColor: getConditionColor(formData.condition),
-      category: formData.category,
-      image: photos.length > 0 ? photos[0] : (existingPhotos.length > 0 ? existingPhotos[0] : null),
-      meetingSpot: formData.meetingSpot,
-      meetingLocation: formData.meetingSpot === "verified" 
-        ? "Student Union / Library" 
-        : "Custom campus spot (to be arranged)"
-    };
 
-    // Update in context
-    updateListing(parseInt(id), updatedListing);
-    
-    console.log("Item updated:", updatedListing);
-    
-    // Navigate back to My Listings
-    navigate("/my-listings");
+    setErrorMessage("");
+
+    if (!formData.condition) {
+      setErrorMessage("Select item condition before saving.");
+      return;
+    }
+
+    if (photos.length === 0 && existingPhotos.length === 0) {
+      setErrorMessage("At least one image is required.");
+      return;
+    }
+
+    const authToken = getStoredAuthToken();
+    if (!authToken) {
+      setErrorMessage("Please login to edit this item.");
+      navigate("/");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await updateProduct({
+        token: authToken,
+        productId: id,
+        payload: {
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          condition: formData.condition === "Used" ? "Good" : "New",
+          price: Number(formData.price),
+          meetingSpot: formData.meetingSpot || "verified",
+        },
+        imageFiles: photos.map((photo) => photo.file),
+      });
+
+      await refreshListings();
+      navigate("/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Failed to update listing");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleMarkAsSold = () => {
-    updateListingStatus(parseInt(id), "sold", {
-      soldTo: "Buyer",
-      soldDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    });
-    navigate("/my-listings");
+  const handleMarkAsSold = async () => {
+    const authToken = getStoredAuthToken();
+    if (!authToken) {
+      navigate("/");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await updateProduct({
+        token: authToken,
+        productId: id,
+        payload: { availabilityStatus: "Sold" },
+        imageFiles: [],
+      });
+      await refreshListings();
+      navigate("/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Failed to mark as sold");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDeactivate = () => {
-    updateListingStatus(parseInt(id), "inactive");
-    navigate("/my-listings");
+  const handleDeactivate = async () => {
+    const authToken = getStoredAuthToken();
+    if (!authToken) {
+      navigate("/");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await updateProduct({
+        token: authToken,
+        productId: id,
+        payload: { availabilityStatus: "Unavailable" },
+        imageFiles: [],
+      });
+      await refreshListings();
+      navigate("/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Failed to deactivate listing");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -190,12 +234,14 @@ const EditItem = () => {
           <div className="flex space-x-3">
             <button
               onClick={handleMarkAsSold}
+              disabled={saving}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
             >
               Mark as Sold
             </button>
             <button
               onClick={handleDeactivate}
+              disabled={saving}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
             >
               Deactivate
@@ -204,6 +250,12 @@ const EditItem = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {errorMessage && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
           {/* Photos Section */}
           <div className="border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Photos</h2>
@@ -238,7 +290,7 @@ const EditItem = () => {
               {photos.map((photo, index) => (
                 <div key={`new-${index}`} className="aspect-square relative group">
                   <img
-                    src={photo}
+                    src={photo.previewUrl}
                     alt={`New ${index + 1}`}
                     className="w-full h-full object-cover rounded-lg"
                   />
@@ -484,10 +536,11 @@ const EditItem = () => {
             </button>
             <button
               type="submit"
+              disabled={saving}
               className="px-9 py-2 bg-blue-600 text-white rounded-3xl hover:bg-blue-700 transition-colors flex items-center space-x-2"
             >
               <Save className="h-4 w-4" />
-              <span>Save Changes</span>
+              <span>{saving ? "Saving..." : "Save Changes"}</span>
             </button>
           </div>
         </form>

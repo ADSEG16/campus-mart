@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import logo from "../assets/logo.svg";
 
 export default function Navbar({ variant = "default" }) {
@@ -12,11 +13,11 @@ export default function Navbar({ variant = "default" }) {
     if (variant === "product") {
         return (
             <nav className="bg-white shadow-sm sticky top-0 z-50">
-                <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo and Brand */}
                         <div className="shrink-0">
-                            <a href="/dashboard" className="flex items-center space-x-1">
+                            <Link to="/dashboard" className="flex items-center space-x-1">
                                 <img 
                                     src={logo} 
                                     alt="CampusMart Logo" 
@@ -25,7 +26,7 @@ export default function Navbar({ variant = "default" }) {
                                 <p className="text-xl sm:text-2xl font-bold text-gray-800 hover:text-gray-600 transition-colors">
                                     Campus<span className="text-[#137FEC]">Mart</span>
                                 </p>
-                            </a>
+                            </Link>
                         </div>
 
                         {/* Search Bar - Hidden on mobile */}
@@ -38,28 +39,90 @@ export default function Navbar({ variant = "default" }) {
                         </div>
 
                         {/* Right side navigation */}
-                        <div className="flex items-center space-x-4">
-                            <a 
-                                href="/dashboard" 
-                                className="hidden md:block text-gray-600 hover:text-gray-900 transition-colors font-medium"
+                        <div className="hidden md:flex items-center space-x-4">
+                            <Link 
+                                to="/marketplace" 
+                                className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
                             >
                                 Browse
-                            </a>
-                            <a 
-                                href="/safety" 
-                                className="hidden md:block text-gray-600 hover:text-gray-900 transition-colors font-medium"
+                            </Link>
+                            <Link 
+                                to="/safety" 
+                                className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
                             >
                                 Safety
-                            </a>
-                            <button className="hidden md:block px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                            </Link>
+                            <Link to="/post-item" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
                                 + Post Item
-                            </button>
-                            <a href="/settings" className="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center">
-                                <span className="text-orange-600 font-semibold">👤</span>
-                            </a>
+                            </Link>
                         </div>
+
+                        <button
+                            onClick={toggleMenu}
+                            className="md:hidden p-0 text-gray-600 hover:text-gray-900 transition-colors"
+                            aria-label="Toggle menu"
+                        >
+                            {isMenuOpen ? (
+                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            ) : (
+                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            )}
+                        </button>
                     </div>
                 </div>
+
+                {isMenuOpen && (
+                    <div className="md:hidden fixed inset-0 z-50">
+                        <button
+                            type="button"
+                            aria-label="Close navigation drawer"
+                            className="absolute inset-0 bg-black/40"
+                            onClick={() => setIsMenuOpen(false)}
+                        />
+                        <div className="absolute right-0 top-0 h-full w-[82vw] max-w-sm bg-white shadow-2xl p-5 overflow-y-auto">
+                            <div className="flex items-center justify-between mb-6">
+                                <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">Menu</span>
+                                <button
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="p-0 text-gray-700"
+                                    aria-label="Close navigation drawer"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                    Dashboard
+                                </Link>
+                                <Link to="/marketplace" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                    Marketplace
+                                </Link>
+                                <Link to="/watchlist" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                    Watchlist
+                                </Link>
+                                <Link to="/messages" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                    Messages
+                                </Link>
+                                <Link to="/settings" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                    Settings
+                                </Link>
+                                <Link to="/safety" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                    Safety
+                                </Link>
+                                <Link to="/post-item" onClick={() => setIsMenuOpen(false)} className="block text-center px-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium mt-4">
+                                    Post Item
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </nav>
         );
     }
@@ -67,11 +130,11 @@ export default function Navbar({ variant = "default" }) {
     // Default navbar for other pages
     return (
         <nav className="bg-white shadow-sm sticky top-0 z-50">
-            <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6">
                 <div className="flex items-center justify-between h-16">
                    {/* Logo and Brand */}
                     <div className="shrink-0">
-                        <a href="/dashboard" className="flex items-center space-x-1">
+                        <Link to="/dashboard" className="flex items-center space-x-1">
                             <img 
                                 src={logo} 
                                 alt="CampusMart Logo" 
@@ -80,32 +143,32 @@ export default function Navbar({ variant = "default" }) {
                             <p className="text-xl sm:text-2xl font-bold text-gray-800 hover:text-gray-600 transition-colors">
                                 Campus<span className="text-[#137FEC]">Mart</span>
                             </p>
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Desktop Navigation Links */}
                     <div className="hidden md:flex items-center space-x-6">
-                        <a 
-                            href="/dashboard" 
+                            <Link 
+                                to="/marketplace" 
                             className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium"
                         >
                             Marketplace
-                        </a>
-                        <a 
-                            href="/watchlist" 
+                        </Link>
+                        <Link 
+                            to="/watchlist" 
                             className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium"
                         >
                             My Deals
-                        </a>
-                        <a href="/settings" className="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center">
+                        </Link>
+                        <Link to="/settings" className="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center">
                             <span className="text-orange-600 font-semibold">👤</span>
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Mobile Menu Button */}
                     <button
                         onClick={toggleMenu}
-                        className="md:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="md:hidden p-0 text-gray-600 hover:text-gray-900 transition-colors"
                         aria-label="Toggle menu"
                     >
                         {isMenuOpen ? (
@@ -121,32 +184,55 @@ export default function Navbar({ variant = "default" }) {
                 </div>
             </div>
 
-            {/* Mobile Navigation Menu */}
-            <div className={`md:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
-                <div className="px-4 pt-2 pb-4 space-y-2 bg-white border-t border-gray-200">
-                    <a 
-                        href="/dashboard" 
-                        className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
-                        onClick={toggleMenu}
-                    >
-                        Marketplace
-                    </a>
-                    <a 
-                        href="/watchlist" 
-                        className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
-                        onClick={toggleMenu}
-                    >
-                        My Deals
-                    </a>
-                    <a 
-                        href="/settings" 
-                        className="block px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 font-medium"
-                        onClick={toggleMenu}
-                    >
-                        Settings
-                    </a>
+            {/* Mobile Navigation Drawer */}
+            {isMenuOpen && (
+                <div className="md:hidden fixed inset-0 z-50">
+                    <button
+                        type="button"
+                        aria-label="Close navigation drawer"
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setIsMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-0 h-full w-[82vw] max-w-sm bg-white shadow-2xl p-5 overflow-y-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <span className="text-sm font-semibold uppercase tracking-wide text-gray-500">Menu</span>
+                            <button
+                                onClick={() => setIsMenuOpen(false)}
+                                className="p-0 text-gray-700"
+                                aria-label="Close navigation drawer"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                Dashboard
+                            </Link>
+                            <Link to="/messages" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                Messages
+                            </Link>
+                            <Link to="/settings" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                Settings
+                            </Link>
+                            <Link to="/marketplace" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                Marketplace
+                            </Link>
+                            <Link to="/watchlist" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                Watchlist
+                            </Link>
+                            <Link to="/safety" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
+                                Safety
+                            </Link>
+                            <Link to="/post-item" onClick={() => setIsMenuOpen(false)} className="block text-center px-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium mt-4">
+                                Post Item
+                            </Link>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
         </nav>
     );
 }

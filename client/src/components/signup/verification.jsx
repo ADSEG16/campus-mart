@@ -4,12 +4,19 @@ import studentID from "../../assets/studentID.webp";
 import { useNavigate } from "react-router-dom";
 import Navbar from '../navbar';
 import Footer from '../footer';
+import { getStoredAuthToken } from '../../api/http';
+import { uploadStudentId, verifyEmailToken } from '../../api/auth';
 
 export default function Verification() {
 	const navigate = useNavigate();
 	const [uploadedFile, setUploadedFile] = useState(null);
 	const [previewUrl, setPreviewUrl] = useState('');
 	const [isDragging, setIsDragging] = useState(false);
+	const [verificationToken, setVerificationToken] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isEmailVerified, setIsEmailVerified] = useState(false);
+	const [errorMessage, setErrorMessage] = useState('');
+	const [successMessage, setSuccessMessage] = useState('');
 
 	const handleFileChange = (e) => {
 		const file = e.target.files[0];
@@ -67,16 +74,44 @@ export default function Verification() {
 		document.getElementById('studentId').value = '';
 	};
 
-	const handleSubmit = (e) => {
+	const handleSubmit = async (e) => {
 		e.preventDefault();
+		setErrorMessage('');
+		setSuccessMessage('');
+
 		if (!uploadedFile) {
-			alert('Please upload your student ID first');
+			setErrorMessage('Please upload your student ID first');
 			return;
 		}
-		// Handle verification submission logic here
-		console.log('Verification submitted', uploadedFile);
-		// You can add API call here
-		navigate('/signup/profileSetup');
+
+		const authToken = getStoredAuthToken();
+		if (!authToken) {
+			setErrorMessage('Your signup session has expired. Please sign up again.');
+			navigate('/signup');
+			return;
+		}
+
+		try {
+			setIsSubmitting(true);
+
+			if (!isEmailVerified) {
+				if (!verificationToken.trim()) {
+					setErrorMessage('Enter your email verification token first.');
+					return;
+				}
+
+				await verifyEmailToken(verificationToken.trim());
+				setIsEmailVerified(true);
+			}
+
+			await uploadStudentId({ token: authToken, file: uploadedFile });
+			setSuccessMessage('Verification submitted successfully. Continue to profile setup.');
+			navigate('/signup/profileSetup');
+		} catch (error) {
+			setErrorMessage(error.message || 'Failed to submit verification');
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleBack = () => {
@@ -108,6 +143,35 @@ export default function Verification() {
 				<div className="flex flex-col items-left justify-left mb-6">
 					<h2 className="text-2xl font-bold text-gray-800 mb-2">Step 2: Student Verification</h2>
 					<p className="text-gray-600">To ensure a secure marketplace, we require student verification. Please upload a valid student ID for verification.</p>
+				</div>
+
+				{errorMessage && (
+					<div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+						{errorMessage}
+					</div>
+				)}
+
+				{successMessage && (
+					<div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+						{successMessage}
+					</div>
+				)}
+
+				<div className="mb-6">
+					<label htmlFor="verificationToken" className="block text-sm font-medium text-gray-700 mb-1">
+						EMAIL VERIFICATION TOKEN
+					</label>
+					<input
+						id="verificationToken"
+						type="text"
+						value={verificationToken}
+						onChange={(e) => setVerificationToken(e.target.value)}
+						placeholder="Paste token from verification email"
+						className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+					/>
+					<p className="text-xs text-gray-500 mt-1">
+						You must verify email before uploading student ID.
+					</p>
 				</div>
 				
 				<div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
@@ -279,14 +343,18 @@ export default function Verification() {
 					<button
 						type="submit"
 						onClick={handleSubmit}
-						disabled={!uploadedFile}
+						disabled={!uploadedFile || isSubmitting}
 						className={`w-full px-4 py-3 rounded-2xl transition-all duration-300 font-medium ${
-							uploadedFile 
+							uploadedFile && !isSubmitting
 								? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' 
 								: 'bg-gray-300 text-gray-500 cursor-not-allowed'
 						}`}
 					>
-						{uploadedFile ? 'Submit for Verification' : 'Upload a file to continue'}
+						{isSubmitting
+							? 'Submitting...'
+							: uploadedFile
+								? 'Submit for Verification'
+								: 'Upload a file to continue'}
 					</button>
 					<button
 						type="button"

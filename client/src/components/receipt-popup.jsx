@@ -22,7 +22,7 @@ const ReceiptPopup = ({ transactionId, onClose, onDownload, onPrint }) => {
       seller: "Sarah M.",
       buyer: "Alex Johnson",
       product: "Noise Cancelling Headphones",
-      condition: "Like New",
+      condition: "Used",
       usage: "Used for 2 Months",
       subtotal: "$45.00",
       platformFee: "Free",
@@ -37,7 +37,7 @@ const ReceiptPopup = ({ transactionId, onClose, onDownload, onPrint }) => {
       seller: "David L.",
       buyer: "Alex Johnson",
       product: "Biology Vol 1. Textbook",
-      condition: "Like New",
+      condition: "Used",
       usage: "Used for 1 Semester",
       subtotal: "$120.00",
       platformFee: "Free",
@@ -52,7 +52,7 @@ const ReceiptPopup = ({ transactionId, onClose, onDownload, onPrint }) => {
       seller: "Ryan K.",
       buyer: "Alex Johnson",
       product: "Study Desk Lamp",
-      condition: "Good",
+      condition: "Used",
       usage: "Used for 3 Months",
       subtotal: "$15.00",
       platformFee: "Free",
@@ -67,7 +67,7 @@ const ReceiptPopup = ({ transactionId, onClose, onDownload, onPrint }) => {
       seller: "Jordan W.",
       buyer: "Alex Johnson",
       product: "Dorm Mini Fridge",
-      condition: "Excellent",
+      condition: "New",
       usage: "Used for 4 Months",
       subtotal: "$85.00",
       platformFee: "Free",
@@ -80,7 +80,11 @@ const ReceiptPopup = ({ transactionId, onClose, onDownload, onPrint }) => {
     }
   };
 
-  const receiptData = receiptDataMap[transactionId] || receiptDataMap[1];
+  const fallback = receiptDataMap[1];
+  const receiptData = receiptDataMap[transactionId] || {
+    ...fallback,
+    orderId: transactionId ? `#${transactionId}` : fallback.orderId,
+  };
 
   const generatePDF = async () => {
     if (!receiptRef.current) return;

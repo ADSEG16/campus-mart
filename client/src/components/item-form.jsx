@@ -14,11 +14,15 @@ import {
 } from "lucide-react";
 import Nav from "./nav";
 import { useListings } from "../context";
+import { createProduct } from "../api/products";
+import { getStoredAuthToken } from "../api/http";
 
 const PostNewItem = () => {
   const navigate = useNavigate();
-  const { addListing } = useListings();
+  const { refreshListings } = useListings();
   const [photos, setPhotos] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -42,26 +46,16 @@ const PostNewItem = () => {
 
   const conditions = [
     { label: "New", color: "blue" },
-    { label: "Like New", color: "green" },
-    { label: "Good", color: "green" },
-    { label: "Fair", color: "orange" }
+    { label: "Used", color: "green" }
   ];
-
-  // Map condition to color
-  const getConditionColor = (condition) => {
-    const map = {
-      "New": "blue",
-      "Like New": "green",
-      "Good": "green",
-      "Fair": "orange"
-    };
-    return map[condition] || "gray";
-  };
 
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
     if (photos.length + files.length <= 5) {
-      const newPhotos = files.map(file => URL.createObjectURL(file));
+      const newPhotos = files.map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
       setPhotos([...photos, ...newPhotos]);
     }
   };
@@ -76,35 +70,53 @@ const PostNewItem = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Create new listing object
-    const newListing = {
-      title: formData.title,
-      subtitle: formData.subtitle || "New listing",
-      description: formData.description,
-      price: `GHC${parseFloat(formData.price).toFixed(0)}`,
-      condition: formData.condition.toUpperCase(),
-      conditionColor: getConditionColor(formData.condition),
-      category: formData.category,
-      image: photos.length > 0 ? photos[0] : null,
-      meetingSpot: formData.meetingSpot,
-      soldTo: null,
-      soldDate: null,
-      meetingTime: null,
-      meetingLocation: formData.meetingSpot === "verified" 
-        ? "Student Union / Library" 
-        : "Custom campus spot (to be arranged)"
-    };
 
-    // Add to context
-    addListing(newListing);
-    
-    console.log("Item posted:", newListing);
-    
-    // Navigate to My Listings page to see the new item
-    navigate("/my-listings");
+    setErrorMessage("");
+
+    if (!formData.condition) {
+      setErrorMessage("Select an item condition before posting.");
+      return;
+    }
+
+    if (photos.length === 0) {
+      setErrorMessage("At least one image is required.");
+      return;
+    }
+
+    const authToken = getStoredAuthToken();
+    if (!authToken) {
+      setErrorMessage("Please login to post an item.");
+      navigate("/");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      await createProduct({
+        token: authToken,
+        payload: {
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          condition: formData.condition === "Used" ? "Good" : "New",
+          price: Number(formData.price),
+          stock: 1,
+          meetingSpot: formData.meetingSpot || "verified",
+          availabilityStatus: "Available",
+        },
+        imageFiles: photos.map((photo) => photo.file),
+      });
+
+      await refreshListings();
+      navigate("/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Failed to post item");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -120,6 +132,12 @@ const PostNewItem = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {errorMessage && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
+
           {/* Photos Section */}
           <div className="border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Photos</h2>
@@ -146,7 +164,7 @@ const PostNewItem = () => {
               {photos.map((photo, index) => (
                 <div key={index} className="aspect-square relative group">
                   <img
-                    src={photo}
+                    src={photo.previewUrl}
                     alt={`Upload ${index + 1}`}
                     className="w-full h-full object-cover rounded-lg"
                   />
@@ -190,7 +208,7 @@ const PostNewItem = () => {
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="e.g. TI-84 Graphing Calculator - Like New"
+                  placeholder="e.g. TI-84 Graphing Calculator - Used"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
@@ -380,9 +398,10 @@ const PostNewItem = () => {
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="px-9 py-2 bg-blue-600 text-white rounded-3xl hover:bg-blue-700 transition-colors"
             >
-              Post Item
+              {isSubmitting ? "Posting..." : "Post Item"}
             </button>
           </div>
         </form>
