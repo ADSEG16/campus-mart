@@ -5,9 +5,11 @@ import Footer from "../components/footer";
 
 export default function SignUpPage() {
     return(
-        <div>
+        <div className="min-h-screen flex flex-col">
         <Navbar />
-        <SignUpForm />
+        <div className="flex-1">
+            <SignUpForm />
+        </div>
         <Footer />
         </div>
     )}

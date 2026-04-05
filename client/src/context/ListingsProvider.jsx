@@ -1,94 +1,28 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ListingsContext } from "./ListingsContext";
+import { fetchProducts } from "../api/products";
 
 export const ListingsProvider = ({ children }) => {
-  // Initial mock listings
-  const [listings, setListings] = useState([
-    {
-      id: 1,
-      title: "Noise Cancelling Headphones",
-      subtitle: "Carryless Sony W-1HDQH4",
-      description: "Portable for long study sessions...",
-      price: "GHC45",
-      condition: "EXCELLENT",
-      conditionColor: "green",
-      category: "Electronics",
-      image: null,
-      user: {
-        initials: "RK",
-        name: "Ryan K.",
-        age: 21,
-        verified: true,
-      },
-      status: "active",
-      statusLabel: "ACTIVE",
-      views: 142,
-      inquiries: 3,
-      postedDate: "2 days ago",
-      actions: ["edit", "deactivate"],
-      soldTo: null,
-      soldDate: null,
-      meetingTime: null,
-      meetingLocation: null,
-      createdAt: new Date("2024-10-10"),
-    },
-    {
-      id: 2,
-      title: "Biology Vol 1. Textbook",
-      subtitle: "Latest edition. Highlighters & markers.",
-      description: "Includes digital access.",
-      price: "GHC120",
-      condition: "NEW",
-      conditionColor: "blue",
-      category: "Textbooks",
-      image: null,
-      user: {
-        initials: "JD",
-        name: "James D.",
-        age: 19,
-        verified: false,
-      },
-      status: "active",
-      statusLabel: "ACTIVE",
-      views: 89,
-      inquiries: 5,
-      postedDate: "5 days ago",
-      actions: ["edit", "deactivate"],
-      soldTo: null,
-      soldDate: null,
-      meetingTime: null,
-      meetingLocation: null,
-      createdAt: new Date("2024-10-05"),
-    },
-    {
-      id: 3,
-      title: "Study Desk Lamp",
-      subtitle: "Adjustable LED lamp with bioluminescent light source.",
-      description: "USB charging...",
-      price: "GHC15",
-      condition: "FAIR",
-      conditionColor: "orange",
-      category: "Dorm Life",
-      image: null,
-      user: {
-        initials: "ML",
-        name: "Michelle L.",
-        age: 22,
-        verified: true,
-      },
-      status: "pending",
-      statusLabel: "PENDING",
-      views: 45,
-      inquiries: 2,
-      postedDate: "1 day ago",
-      actions: ["chat", "mark-sold"],
-      soldTo: null,
-      soldDate: null,
-      meetingTime: "Today, 4:00 PM",
-      meetingLocation: "Library North",
-      createdAt: new Date("2024-10-12"),
-    },
-  ]);
+  const [listings, setListings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const loadListings = async () => {
+    try {
+      setIsLoading(true);
+      setLoadError(null);
+      const result = await fetchProducts();
+      setListings(result);
+    } catch (error) {
+      setLoadError(error.message || "Failed to load listings");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadListings();
+  }, []);
 
   // Add a new listing
   const addListing = (newListing) => {
@@ -138,7 +72,7 @@ export const ListingsProvider = ({ children }) => {
 
   // Get listing by ID
   const getListingById = (id) => {
-    return listings.find((listing) => listing.id === id);
+    return listings.find((listing) => String(listing.id) === String(id));
   };
 
   // Filter listings by status
@@ -157,6 +91,9 @@ export const ListingsProvider = ({ children }) => {
         deleteListing,
         getListingById,
         getListingsByStatus,
+        isLoading,
+        loadError,
+        refreshListings: loadListings,
       }}
     >
       {children}

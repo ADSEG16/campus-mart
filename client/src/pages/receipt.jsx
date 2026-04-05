@@ -1,18 +1,16 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import DigitalReceipt from "../components/receipt";
+import { useNavigate, useParams } from "react-router-dom";
+import ReceiptPopup from "../components/receipt-popup";
 
 const ReceiptPage = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
 
   const handleBack = () => {
-    navigate(-1); // Go back to previous page
-    // or navigate('/transactions') to go to transaction history
+    navigate(-1);
   };
 
   const handleDownload = () => {
     console.log("Downloading PDF...");
-    // Implement PDF download logic here
   };
 
   const handlePrint = () => {
@@ -21,8 +19,9 @@ const ReceiptPage = () => {
   };
 
   return (
-    <DigitalReceipt
-      onBack={handleBack}
+    <ReceiptPopup
+      transactionId={id}
+      onClose={handleBack}
       onDownload={handleDownload}
       onPrint={handlePrint}
     />

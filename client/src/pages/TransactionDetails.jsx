@@ -1,4 +1,4 @@
-import TransactionDetails from "../components/transactions/TransactonDetails";
+import TransactionDetails from "../components/transactions/TransactionDetails";
 
 
 

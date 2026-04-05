@@ -1,4 +1,5 @@
 import { MapPin, FileText, CreditCard, AlertCircle, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import Navbar from "../components/navbar";
 
 export default function Safety() {
@@ -6,7 +7,7 @@ export default function Safety() {
         <div className="min-h-screen bg-gray-50">
             <Navbar />
             
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-8">
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Main Content */}
                     <div className="flex-1">
@@ -94,16 +95,16 @@ export default function Safety() {
                                 <p className="text-gray-600 mb-4">
                                     Trust your instincts. If a user acts suspiciously or requests an unsafe location, flag them immediately via the chat menu.
                                 </p>
-                                <a href="#" className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center">
+                                <Link to="/messages" className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center">
                                     HOW TO REPORT A USER →
-                                </a>
+                                </Link>
                             </div>
                         </div>
 
                         {/* Safe Zone Badge Section */}
                         <div className="bg-white rounded-xl p-8 shadow-sm text-center">
                             <div className="w-full max-w-md mx-auto mb-6">
-                                <div className="bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg p-8 text-white">
+                                <div className="bg-linear-to-br from-teal-500 to-teal-700 rounded-lg p-8 text-white">
                                     <div className="text-sm font-medium mb-2">CAMPUS HUBS</div>
                                     <div className="flex items-center justify-center space-x-4 mb-4">
                                         <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
@@ -156,18 +157,18 @@ export default function Safety() {
                         <div className="bg-gray-900 rounded-xl p-6 shadow-sm text-white">
                             <h3 className="text-lg font-semibold mb-4">QUICK RESOURCES</h3>
                             <div className="space-y-3">
-                                <a href="#" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+                                <Link to="/safety" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
                                     <FileText className="w-5 h-5 mr-3" />
                                     <span>Full Safety Manual</span>
-                                </a>
-                                <a href="#" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+                                </Link>
+                                <Link to="/signup/verification" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
                                     <Shield className="w-5 h-5 mr-3" />
                                     <span>Verify My Account</span>
-                                </a>
-                                <a href="#" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+                                </Link>
+                                <Link to="/messages" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
                                     <AlertCircle className="w-5 h-5 mr-3" />
                                     <span>Contact Support</span>
-                                </a>
+                                </Link>
                             </div>
                         </div>
 

@@ -1,96 +1,119 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Send, Paperclip, DollarSign, Clock, MoreVertical, Shield, MapPin } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Navbar from "../components/navbar";
 import MeetingPointModal from "../components/MeetingPointModal";
+import { getStoredAuthToken } from "../api/http";
+import { listOrders } from "../api/orders";
 
 export default function Messages() {
     const [message, setMessage] = useState("");
     const [showMenu, setShowMenu] = useState(false);
     const [showMeetingModal, setShowMeetingModal] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState("");
+    const [conversations, setConversations] = useState([]);
     const [searchParams] = useSearchParams();
-    const chatId = searchParams.get('chat') || '1';
-
-    const conversations = [
-        {
-            id: '1',
-            name: "Alex Johnson",
-            avatar: "AJ",
-            lastMessage: "Is the textbook still available?",
-            time: "2m ago",
-            unread: true,
-            verified: true,
-            status: "Buying: Organic Chemistry Textbook",
-            product: {
-                title: "Organic Chemistry: Structure and Function (8th Ed)",
-                price: "$45.00",
-                status: "AVAILABLE"
-            }
-        },
-        {
-            id: '2',
-            name: "Sarah Kim",
-            avatar: "SK",
-            lastMessage: "Let's meet at the Student Union",
-            time: "1h ago",
-            unread: false,
-            verified: true,
-            status: "Buying: Noise Cancelling Headphones",
-            product: {
-                title: "Sony WH-1000XM4 Headphones",
-                price: "$120.00",
-                status: "AVAILABLE"
-            }
-        },
-        {
-            id: '3',
-            name: "Mike Brown",
-            avatar: "MB",
-            lastMessage: "Payment sent via Venmo!",
-            time: "Yesterday",
-            unread: false,
-            verified: true,
-            status: "Buying: Desk Lamp",
-            product: {
-                title: "LED Desk Lamp with USB Port",
-                price: "$25.00",
-                status: "SOLD"
-            }
-        },
-        {
-            id: '4',
-            name: "Ryan K.",
-            avatar: "RK",
-            lastMessage: "Still interested in the item",
-            time: "2d ago",
-            unread: false,
-            verified: true,
-            status: "Buying: Biology Textbook",
-            product: {
-                title: "Biology Vol 1. Latest Edition",
-                price: "$80.00",
-                status: "AVAILABLE"
-            }
+    const currentUser = useMemo(() => {
+        try {
+            return JSON.parse(localStorage.getItem("currentUser") || "{}");
+        } catch {
+            return {};
         }
-    ];
+    }, []);
+    const chatId = searchParams.get('chat') || '';
+
+    useEffect(() => {
+        const loadConversations = async () => {
+            const authToken = getStoredAuthToken();
+            if (!authToken) {
+                setErrorMessage("Please login to access messages.");
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                setIsLoading(true);
+                setErrorMessage("");
+
+                const orders = await listOrders({ token: authToken });
+                const conversationMap = new Map();
+
+                orders.forEach((order) => {
+                    const isSeller = String(order?.sellerId?._id || order?.sellerId) === String(currentUser?._id || "");
+                    const counterpart = isSeller ? order?.buyerId : order?.sellerId;
+                    const counterpartId = String(counterpart?._id || counterpart || "");
+                    const item = order?.items?.[0]?.productId;
+
+                    if (!counterpartId || conversationMap.has(counterpartId)) {
+                        return;
+                    }
+
+                    const name = counterpart?.fullName || counterpart?.email || "Campus User";
+                    const initials = name
+                        .split(" ")
+                        .slice(0, 2)
+                        .map((part) => part?.[0] || "")
+                        .join("")
+                        .toUpperCase() || "CU";
+
+                    conversationMap.set(counterpartId, {
+                        id: counterpartId,
+                        name,
+                        avatar: initials,
+                        lastMessage: `Order ${String(order?.status || "Pending").toLowerCase()} update`,
+                        time: new Date(order?.updatedAt || order?.createdAt || Date.now()).toLocaleDateString(),
+                        unread: false,
+                        verified: Boolean(counterpart?.email),
+                        status: `${isSeller ? "Selling" : "Buying"}: ${item?.title || "Campus Mart Item"}`,
+                        product: {
+                            title: item?.title || "Campus Mart Item",
+                            price: `GHC ${Number(order?.totalAmount || 0).toFixed(2)}`,
+                            status: String(order?.status || "Pending").toUpperCase(),
+                        },
+                    });
+                });
+
+                setConversations(Array.from(conversationMap.values()));
+            } catch (error) {
+                setErrorMessage(error.message || "Failed to load conversations");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadConversations();
+    }, [currentUser?._id]);
 
     const activeChat = conversations.find(c => c.id === chatId) || conversations[0];
+    const myInitials = (currentUser?.fullName || "Campus User")
+        .split(" ")
+        .slice(0, 2)
+        .map((part) => part?.[0] || "")
+        .join("")
+        .toUpperCase() || "CU";
 
     return (
         <div className="min-h-screen bg-gray-50">
             <Navbar />
             
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-6">
                 <div className="grid lg:grid-cols-12 gap-6 h-[calc(100vh-200px)]">
                     {/* Conversations List */}
                     <div className="lg:col-span-4 bg-gray-900 rounded-xl overflow-hidden">
                         <div className="p-6 border-b border-gray-800">
                             <h2 className="text-xl font-bold text-white mb-4">ACTIVE CONVERSATIONS</h2>
                             <div className="space-y-2">
+                                {isLoading && (
+                                    <div className="text-sm text-gray-400 px-3 py-2">Loading conversations...</div>
+                                )}
+                                {errorMessage && !isLoading && (
+                                    <div className="text-sm text-red-300 px-3 py-2">{errorMessage}</div>
+                                )}
                                 {conversations.map((conv) => (
-                                    <a
+                                    <Link
                                         key={conv.id}
-                                        href={`/messages?chat=${conv.id}`}
+                                        to={`/messages?chat=${conv.id}`}
                                         className={`w-full flex items-center p-3 rounded-lg transition-colors ${
                                             conv.id === chatId ? 'bg-gray-800' : 'hover:bg-gray-800'
                                         }`}
@@ -108,18 +131,21 @@ export default function Messages() {
                                             <div className="text-sm text-gray-400 truncate">{conv.lastMessage}</div>
                                         </div>
                                         <div className="text-xs text-gray-500">{conv.time}</div>
-                                    </a>
+                                    </Link>
                                 ))}
+                                {!isLoading && !errorMessage && conversations.length === 0 && (
+                                    <div className="text-sm text-gray-400 px-3 py-2">No conversations yet. Start from a product page.</div>
+                                )}
                             </div>
                         </div>
 
                         <div className="p-6">
                             <h3 className="text-sm font-semibold text-gray-400 mb-3">QUICK RESOURCES</h3>
                             <div className="space-y-2">
-                                <a href="/safety" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-white">
+                                <Link to="/safety" className="flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-white">
                                     <Shield className="w-5 h-5 mr-3" />
                                     <span>Safety Guidelines</span>
-                                </a>
+                                </Link>
                                 <button className="w-full flex items-center p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-white">
                                     <span className="mr-3">⚠️</span>
                                     <span>Report a Concern</span>
@@ -181,7 +207,7 @@ export default function Messages() {
 
                             {/* Received Message */}
                             <div className="flex items-start">
-                                <div className="w-8 h-8 bg-orange-200 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                                <div className="w-8 h-8 bg-orange-200 rounded-full flex items-center justify-center mr-2 shrink-0">
                                     <span className="text-orange-600 text-sm font-semibold">{activeChat.avatar}</span>
                                 </div>
                                 <div>
@@ -204,8 +230,8 @@ export default function Messages() {
                                     </div>
                                     <div className="text-xs text-gray-500 mt-1 mr-2 text-right">10:41 AM</div>
                                 </div>
-                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center ml-2 flex-shrink-0">
-                                    <span className="text-white text-sm">🎓</span>
+                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center ml-2 shrink-0">
+                                    <span className="text-white text-sm font-semibold">{myInitials}</span>
                                 </div>
                             </div>
                         </div>

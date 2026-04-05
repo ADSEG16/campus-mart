@@ -1,7 +1,9 @@
+import { Link } from "react-router-dom";
+
 export default function Footer() {
     return (
-        <footer className="bg-white ">
-            <div className="max-w-9xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <footer className="bg-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-6">
                 <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-600">
                     {/* Copyright and Description */}
                     <div className="text-center sm:text-left mb-2 sm:mb-0">
@@ -10,17 +12,17 @@ export default function Footer() {
 
                     {/* Links */}
                     <div className="flex items-center space-x-3">
-                        <a href="/terms" className="hover:text-gray-900 transition-colors duration-200">
+                        <Link to="/terms" className="hover:text-gray-900 transition-colors duration-200">
                             Terms
-                        </a>
+                        </Link>
                         <span>•</span>
-                        <a href="/privacy" className="hover:text-gray-900 transition-colors duration-200">
+                        <Link to="/privacy" className="hover:text-gray-900 transition-colors duration-200">
                             Privacy
-                        </a>
+                        </Link>
                         <span>•</span>
-                        <a href="/safety-hub" className="hover:text-gray-900 transition-colors duration-200">
+                        <Link to="/safety" className="hover:text-gray-900 transition-colors duration-200">
                             Safety Hub
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProgressBar from "./progressBar";
+import { signupUser } from '../../api/auth';
 
 export default function SignUpForm() {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ export default function SignUpForm() {
         graduationYear: '',
         confirmPassword: ''
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleChange = (e) => {
         setFormData({
@@ -20,25 +23,39 @@ export default function SignUpForm() {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Add validation here
+        setErrorMessage('');
+
         if (formData.password !== formData.confirmPassword) {
-            alert("Passwords don't match!");
+            setErrorMessage("Passwords don't match.");
             return;
         }
-        console.log('Form submitted:', formData);
-        // Proceed to next step or submit to API
 
-        // Save data to localStorage or context
-        localStorage.setItem('signupData', JSON.stringify(formData));
-        
-        // Navigate to verification step
-        navigate('/signup/verification');
+        try {
+            setIsSubmitting(true);
+            const { token, user } = await signupUser(formData);
+
+            localStorage.setItem('authToken', token || '');
+            localStorage.setItem('currentUser', JSON.stringify(user || {}));
+            localStorage.setItem(
+                'signupFlow',
+                JSON.stringify({
+                    email: formData.email,
+                    createdAt: Date.now(),
+                })
+            );
+
+            navigate('/signup/verification');
+        } catch (error) {
+            setErrorMessage(error.message || 'Signup failed');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
-        <div className="container-main flex flex-col items-center justify-center min-h-screen px-4">
+        <div className="container-main flex flex-col items-center justify-center w-full h-full px-4 py-10">
             {/* Progress Bar */}
              <div className="w-full bg-white mb-2">
                 <div className="max-w-2xl mx-auto px-4 py-6">
@@ -51,6 +68,12 @@ export default function SignUpForm() {
                 <p className="text-gray-600 mb-6">Let's get started with your basic information.</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {errorMessage && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorMessage}
+                        </div>
+                    )}
+
                     {/* 2-Column Grid Layout */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Left Column - 3 Fields */}
@@ -169,9 +192,10 @@ export default function SignUpForm() {
                     <div className="flex justify-center pt-4">
                         <button 
                             type="submit" 
+                            disabled={isSubmitting}
                         className="w-full bg-[#137FEC] text-white py-3 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium mt-4"
                         >
-                            Continue to Verification
+                            {isSubmitting ? 'Creating Account...' : 'Continue to Verification'}
                         </button>
                     </div>
                 </form>
@@ -179,9 +203,9 @@ export default function SignUpForm() {
                 {/* Login Link */}
                 <p className="mt-6 text-sm text-gray-600 text-center">
                     Already have an account?{' '}
-                    <a href="/" className="text-blue-600 hover:text-blue-800 font-medium">
+                    <Link to="/" className="text-blue-600 hover:text-blue-800 font-medium">
                         Log in
-                    </a>
+                    </Link>
                 </p>
             </div>
             <div>

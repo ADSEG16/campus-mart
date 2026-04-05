@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { 
   Eye, 
   MessageCircle, 
@@ -14,21 +14,34 @@ import {
 import MyListingsHeader from "./header";
 import { useListings } from "../../context";
 import { useNavigate } from "react-router-dom";
+import HistoryList from "../transactions/history";
 
 const MyListingsContent = () => {
   const [activeTab, setActiveTab] = useState("all");
   const { listings, updateListingStatus, } = useListings(); //deleteListing 
   const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+
+  const sellerListings = useMemo(() => {
+    if (!currentUser?._id) {
+      return listings;
+    }
+
+    return listings.filter((listing) => String(listing?.user?.id || "") === String(currentUser._id));
+  }, [listings, currentUser?._id]);
 
   const tabs = [
-    { id: "all", label: "All Listings", count: listings.length },
-    { id: "active", label: "Active", count: listings.filter(l => l.status === "active").length },
-    { id: "sold", label: "Sold", count: listings.filter(l => l.status === "sold").length },
-    { id: "pending", label: "Pending", count: listings.filter(l => l.status === "pending").length }
+    { id: "all", label: "All Listings", count: sellerListings.length },
+    { id: "active", label: "Active", count: sellerListings.filter(l => l.status === "active").length },
+    { id: "sold", label: "Sold", count: sellerListings.filter(l => l.status === "sold").length },
+    { id: "pending", label: "Pending", count: sellerListings.filter(l => l.status === "pending").length },
+    { id: "transactions", label: "Transaction History" }
   ];
 
+  const isTransactionTab = activeTab === "transactions";
+
   // Filter listings based on active tab
-  const filteredListings = listings.filter(listing => {
+  const filteredListings = sellerListings.filter(listing => {
     if (activeTab === "all") return true;
     return listing.status === activeTab;
   });
@@ -159,7 +172,7 @@ const MyListingsContent = () => {
   };
 
   return (
-    <div className="max-w-7xl p-6 relative">
+    <div className="w-full relative">
       <MyListingsHeader />
       
       {/* Tabs */}
@@ -175,80 +188,88 @@ const MyListingsContent = () => {
             }`}
           >
             {tab.label}
-            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-              activeTab === tab.id
-                ? 'bg-blue-100 text-blue-600'
-                : 'bg-gray-100 text-gray-600'
-            }`}>
-              {tab.count}
-            </span>
+            {typeof tab.count === "number" && (
+              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                activeTab === tab.id
+                  ? 'bg-blue-100 text-blue-600'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Listings Container */}
-      <div className="space-y-4">
-        {filteredListings.length > 0 ? (
-          filteredListings.map((listing) => (
-            <div 
-              key={listing.id} 
-              className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start space-x-4">
-                {/* Product Image */}
-                <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                  {listing.image ? (
-                    <img src={listing.image} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
-                  ) : (
-                    <ImageIcon className="h-8 w-8 text-gray-400" />
-                  )}
-                </div>
-
-                {/* Listing Details */}
-                <div className="flex-1">
-                  {/* Top row with title and price */}
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex flex-row gap-3 items-center">
-                      <h3 className="font-medium text-gray-900">{listing.title}</h3>
-                      <span className="text-gray-500">{getStatusDisplay(listing)}</span>
+      {isTransactionTab ? (
+        <HistoryList />
+      ) : (
+        <>
+          {/* Listings Container */}
+          <div className="space-y-4">
+            {filteredListings.length > 0 ? (
+              filteredListings.map((listing) => (
+                <div 
+                  key={listing.id} 
+                  className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start space-x-4">
+                    {/* Product Image */}
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                      {listing.image ? (
+                        <img src={listing.image} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
+                      )}
                     </div>
-                    <div className="text-lg font-bold text-gray-900">
-                      {listing.price}
+
+                    {/* Listing Details */}
+                    <div className="flex-1">
+                      {/* Top row with title and price */}
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex flex-row gap-3 items-center">
+                          <h3 className="font-medium text-gray-900">{listing.title}</h3>
+                          <span className="text-gray-500">{getStatusDisplay(listing)}</span>
+                        </div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {listing.price}
+                        </div>
+                      </div>
+
+                      {/* Status-specific metrics */}
+                      <div className="mb-3">
+                        {renderStatusMetrics(listing)}
+                      </div>
+
+                      {/* Bottom row with action buttons */}
+                      <div className="flex items-center space-x-3 text-sm">
+                        {renderActions(listing).map((action, index) => (
+                          <React.Fragment key={index}>
+                            {action}
+                            {index < listing.actions.length - 1 && (
+                              <span className="text-gray-300">|</span>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Status-specific metrics */}
-                  <div className="mb-3">
-                    {renderStatusMetrics(listing)}
-                  </div>
-
-                  {/* Bottom row with action buttons */}
-                  <div className="flex items-center space-x-3 text-sm">
-                    {renderActions(listing).map((action, index) => (
-                      <React.Fragment key={index}>
-                        {action}
-                        {index < listing.actions.length - 1 && (
-                          <span className="text-gray-300">|</span>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                No {activeTab} listings found
               </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            No {activeTab} listings found
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Pagination/Items Count */}
-      {filteredListings.length > 0 && (
-        <div className="mt-6 text-sm text-gray-500 text-center">
-          Showing 1–{filteredListings.length} of {filteredListings.length} items
-        </div>
+          {/* Pagination/Items Count */}
+          {filteredListings.length > 0 && (
+            <div className="mt-6 text-sm text-gray-500 text-center">
+              Showing 1–{filteredListings.length} of {filteredListings.length} items
+            </div>
+          )}
+        </>
       )}
     </div>
   );
