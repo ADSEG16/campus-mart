@@ -32,20 +32,6 @@ const MyWatchlist = () => {
     }
   };
 
-  // Format time ago from addedAt date
-  const getTimeAgo = (addedAt) => {
-    if (!addedAt) return "Recently";
-    
-    const added = new Date(addedAt);
-    const now = new Date();
-    const diffInHours = Math.floor((now - added) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return "Just now";
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 48) return "1d ago";
-    return `${Math.floor(diffInHours / 24)}d ago`;
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-4 sm:py-6">
       {/* Header */}

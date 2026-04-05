@@ -88,15 +88,6 @@ const EditItem = () => {
     loadProduct();
   }, [id, navigate]);
 
-  // Map condition to color
-  const getConditionColor = (condition) => {
-    const map = {
-      "New": "blue",
-      "Used": "green"
-    };
-    return map[condition] || "gray";
-  };
-
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
     if (photos.length + existingPhotos.length + files.length <= 5) {
