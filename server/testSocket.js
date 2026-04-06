@@ -9,6 +9,15 @@ const socket = io("http://localhost:5000", {
 
 socket.on("connect", () => {
   console.log("Connected:", socket.id);
+
+  // ✅ Step 4: Join conversation room
+  socket.emit(
+    "conversation:join",
+    { conversationId: "69d10ca489864b5aa51cef1a" },
+    (res) => {
+      console.log("Join response:", res);
+    },
+  );
 });
 
 socket.on("connect_error", (err) => {
