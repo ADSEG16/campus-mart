@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "jest",
-    "seed:products": "node src/scripts/seedProducts.js"
+    "test": "jest"
+    
   },
   "jest": {
     "testEnvironment": "node"

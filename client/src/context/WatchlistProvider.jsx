@@ -12,17 +12,6 @@ const getWatchlistKey = () => {
 };
 
 export const WatchlistProvider = ({ children }) => {
-  const [storageKey, setStorageKey] = useState(getWatchlistKey);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      setStorageKey(getWatchlistKey());
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
-
   // Load watchlist from localStorage on initial render
   const [watchlist, setWatchlist] = useState(() => {
     const savedWatchlist = localStorage.getItem(getWatchlistKey());
@@ -30,14 +19,19 @@ export const WatchlistProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    const savedWatchlist = localStorage.getItem(storageKey);
-    setWatchlist(savedWatchlist ? JSON.parse(savedWatchlist) : []);
-  }, [storageKey]);
+    const handleStorage = () => {
+      const savedWatchlist = localStorage.getItem(getWatchlistKey());
+      setWatchlist(savedWatchlist ? JSON.parse(savedWatchlist) : []);
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   // Save to localStorage whenever watchlist changes
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(watchlist));
-  }, [watchlist, storageKey]);
+    localStorage.setItem(getWatchlistKey(), JSON.stringify(watchlist));
+  }, [watchlist]);
 
   // Add item to watchlist
   const addToWatchlist = (item) => {

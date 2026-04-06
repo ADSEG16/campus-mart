@@ -49,8 +49,6 @@ export default function Settings() {
     const [editableGraduationYear, setEditableGraduationYear] = useState(currentUser?.graduationYear || "");
     const [editableBio, setEditableBio] = useState(currentUser?.bio || "");
     const email = currentUser?.email || "Not provided";
-    const department = currentUser?.department || "Not provided";
-    const graduationYear = currentUser?.graduationYear || "Not provided";
     const isVerified = Boolean(
         currentUser?.isVerified ||
         currentUser?.emailVerified ||

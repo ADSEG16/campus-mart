@@ -1,10 +1,5 @@
-import { createContext, useCallback, useMemo, useState } from "react";
-
-export const ToastContext = createContext({
-  toasts: [],
-  showToast: () => {},
-  dismissToast: () => {},
-});
+import { useCallback, useMemo, useState } from "react";
+import { ToastContext } from "./ToastContext";
 
 let toastCounter = 0;
 
