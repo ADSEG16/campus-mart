@@ -155,13 +155,10 @@ const updateCurrentUserProfile = async (req, res, next) => {
             });
         }
 
-        if (
-            (req.body.fullName !== undefined && hasDigit(req.body.fullName)) ||
-            (req.body.department !== undefined && hasDigit(req.body.department))
-        ) {
+        if (req.body.fullName !== undefined && hasDigit(req.body.fullName)) {
             return sendError(res, {
                 statusCode: 400,
-                message: 'fullName and department must contain text only (no numbers)',
+                message: 'fullName must contain text only (no numbers)',
             });
         }
 

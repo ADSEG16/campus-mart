@@ -134,6 +134,87 @@ describe('Auth Routes', () => {
       expect(response.statusCode).toBe(409);
       expect(response.body.message).toBe('Email already in use');
     });
+
+    it('should allow department values with numbers', async () => {
+      mockSendMail.mockResolvedValueOnce({
+        messageId: 'msg-3',
+        accepted: ['test3@st.ug.edu.gh'],
+        rejected: [],
+        response: '250 2.0.0 OK',
+      });
+
+      User.findOne.mockResolvedValue(null);
+      const save = jest.fn().mockResolvedValue(undefined);
+      User.create.mockResolvedValue({
+        _id: 'user-3',
+        fullName: 'Test User Three',
+        department: 'CS50',
+        email: 'test3@st.ug.edu.gh',
+        graduationYear: 2026,
+        role: 'user',
+        verificationStatus: 'pending',
+        save,
+      });
+
+      const response = await request(app).post('/api/auth/signup').send({
+        fullName: 'Test User Three',
+        department: 'CS50',
+        email: 'test3@st.ug.edu.gh',
+        graduationYear: 2026,
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(User.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          department: 'CS50',
+        })
+      );
+    });
+
+    it('should use SMTP user fallback sender when SMTP_FROM is blank', async () => {
+      const previousSmtpFrom = process.env.SMTP_FROM;
+      process.env.SMTP_FROM = '';
+
+      mockSendMail.mockResolvedValueOnce({
+        messageId: 'msg-4',
+        accepted: ['test4@st.ug.edu.gh'],
+        rejected: [],
+        response: '250 2.0.0 OK',
+      });
+
+      User.findOne.mockResolvedValue(null);
+      const save = jest.fn().mockResolvedValue(undefined);
+      User.create.mockResolvedValue({
+        _id: 'user-4',
+        fullName: 'Test User Four',
+        department: 'Engineering',
+        email: 'test4@st.ug.edu.gh',
+        graduationYear: 2026,
+        role: 'user',
+        verificationStatus: 'pending',
+        save,
+      });
+
+      const response = await request(app).post('/api/auth/signup').send({
+        fullName: 'Test User Four',
+        department: 'Engineering',
+        email: 'test4@st.ug.edu.gh',
+        graduationYear: 2026,
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(mockSendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: `CampusMart <${process.env.SMTP_USER}>`,
+        })
+      );
+
+      process.env.SMTP_FROM = previousSmtpFrom;
+    });
   });
 
   describe('POST /api/auth/login', () => {

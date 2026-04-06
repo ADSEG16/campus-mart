@@ -26,7 +26,7 @@ const auditEventSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['order', 'user'],
+      enum: ['order', 'user', 'listing'],
       required: true,
       immutable: true,
     },

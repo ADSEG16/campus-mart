@@ -125,9 +125,9 @@ export default function Settings() {
             return;
         }
 
-        if (hasDigit(nextName) || hasDigit(nextDepartment)) {
-            setSaveMessage("Name and department must contain text only (no numbers).");
-            showToast("Name and department must contain text only (no numbers).", "error");
+        if (hasDigit(nextName)) {
+            setSaveMessage("Name must contain text only (no numbers).");
+            showToast("Name must contain text only (no numbers).", "error");
             return;
         }
 
@@ -258,8 +258,6 @@ export default function Settings() {
                                         type="text"
                                         value={editableDepartment}
                                         onChange={(event) => setEditableDepartment(event.target.value)}
-                                        pattern="^[^0-9]+$"
-                                        title="Use text only. Numbers are not allowed."
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">Department / major from your profile</p>

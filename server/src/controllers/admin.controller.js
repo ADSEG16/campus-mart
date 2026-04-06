@@ -1,7 +1,10 @@
 const User = require('../models/user.model');
 const Order = require('../models/order.model');
 const AuditEvent = require('../models/auditEvent.model');
+const Product = require('../models/product.model');
+const mongoose = require('mongoose');
 const { updateUserTrustScore, TRUST_SCORE_RULES } = require('../services/trustScore.service');
+const { ORDER_STATUS } = require('../constants/order.status');
 const { sendSuccess, sendError } = require('../utils/response');
 
 const getTrendWindowDays = (value, fallback = 7) => {
@@ -188,7 +191,7 @@ const getCancellationsTrendAnalytics = async (req, res, next) => {
     const trend = await Order.aggregate([
       {
         $match: {
-          status: 'Cancelled',
+          status: { $in: [ORDER_STATUS.CANCELLED, 'Cancelled'] },
           updatedAt: { $gte: windowStart },
         },
       },
@@ -422,14 +425,18 @@ const suspendUserAccount = async (req, res, next) => {
 const removeListingByAdmin = async (req, res, next) => {
   try {
     const { listingId } = req.params;
-    const Product = require('../models/product.model');
+    if (!mongoose.Types.ObjectId.isValid(String(listingId || ''))) {
+      return sendError(res, { statusCode: 400, message: 'Invalid listingId' });
+    }
+
+    const reason = typeof req.body?.reason === 'string' && req.body.reason.trim()
+      ? req.body.reason.trim()
+      : 'Policy violation';
 
     const product = await Product.findById(listingId);
     if (!product) {
       return sendError(res, { statusCode: 404, message: 'Listing not found' });
     }
-
-    const reason = req.body.reason || 'Policy violation';
     
     await Product.findByIdAndDelete(listingId);
 
@@ -447,6 +454,9 @@ const removeListingByAdmin = async (req, res, next) => {
 
     return sendSuccess(res, {
       message: 'Listing removed successfully',
+      data: {
+        listingId: String(product._id),
+      },
       extras: {
         listingId,
         reason,

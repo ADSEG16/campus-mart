@@ -12,26 +12,45 @@ const getWatchlistKey = () => {
 };
 
 export const WatchlistProvider = ({ children }) => {
+  const [storageKey, setStorageKey] = useState(getWatchlistKey);
+
   // Load watchlist from localStorage on initial render
   const [watchlist, setWatchlist] = useState(() => {
-    const savedWatchlist = localStorage.getItem(getWatchlistKey());
+    const savedWatchlist = localStorage.getItem(storageKey);
     return savedWatchlist ? JSON.parse(savedWatchlist) : [];
   });
 
   useEffect(() => {
-    const handleStorage = () => {
-      const savedWatchlist = localStorage.getItem(getWatchlistKey());
-      setWatchlist(savedWatchlist ? JSON.parse(savedWatchlist) : []);
+    const syncWatchlistForCurrentUser = () => {
+      const nextStorageKey = getWatchlistKey();
+
+      setStorageKey((prevStorageKey) => {
+        if (prevStorageKey === nextStorageKey) {
+          return prevStorageKey;
+        }
+
+        const savedWatchlist = localStorage.getItem(nextStorageKey);
+        setWatchlist(savedWatchlist ? JSON.parse(savedWatchlist) : []);
+        return nextStorageKey;
+      });
     };
 
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("storage", syncWatchlistForCurrentUser);
+    window.addEventListener("focus", syncWatchlistForCurrentUser);
+
+    const syncIntervalId = window.setInterval(syncWatchlistForCurrentUser, 1000);
+
+    return () => {
+      window.removeEventListener("storage", syncWatchlistForCurrentUser);
+      window.removeEventListener("focus", syncWatchlistForCurrentUser);
+      window.clearInterval(syncIntervalId);
+    };
   }, []);
 
   // Save to localStorage whenever watchlist changes
   useEffect(() => {
-    localStorage.setItem(getWatchlistKey(), JSON.stringify(watchlist));
-  }, [watchlist]);
+    localStorage.setItem(storageKey, JSON.stringify(watchlist));
+  }, [watchlist, storageKey]);
 
   // Add item to watchlist
   const addToWatchlist = (item) => {

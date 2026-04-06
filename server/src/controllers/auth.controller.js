@@ -9,6 +9,7 @@ const JWT_EXPIRES_IN = '24h';
 const SCHOOL_EMAIL_DOMAIN = '@st.ug.edu.gh';
 const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TOKEN_TTL_MS = 1 * 60 * 60 * 1000; // 1 hour
+const DEFAULT_SMTP_FROM = 'CampusMart <no-reply@st.ug.edu.gh>';
 
 const parseBooleanEnv = (value, fallback = false) => {
 	if (typeof value !== 'string') {
@@ -120,7 +121,7 @@ const resolveSmtpFrom = () => {
 	const configuredFrom = (process.env.SMTP_FROM || '').trim();
 	const smtpUser = (process.env.SMTP_USER || '').trim();
 
-	const fallbackSender = smtpUser ? `CampusMart <${smtpUser}>` : smtpUser;
+	const fallbackSender = smtpUser ? `CampusMart <${smtpUser}>` : DEFAULT_SMTP_FROM;
 
 	if (!configuredFrom) {
 		return fallbackSender;
@@ -428,10 +429,10 @@ const signup = async (req, res, next) => {
 			return sendError(res, { statusCode: 400, message: 'Passwords do not match' });
 		}
 
-		if (hasDigit(fullName) || hasDigit(department)) {
+		if (hasDigit(fullName)) {
 			return sendError(res, {
 				statusCode: 400,
-				message: 'fullName and department must contain text only (no numbers)',
+				message: 'fullName must contain text only (no numbers)',
 			});
 		}
 

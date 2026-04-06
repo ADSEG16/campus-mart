@@ -18,10 +18,15 @@ const {
 
 const LEGACY_STATUS_MAP = Object.freeze({
   pending: ORDER_STATUS.PENDING,
+  Pending: ORDER_STATUS.PENDING,
   accepted: ORDER_STATUS.MEETUP_SCHEDULED,
+  Accepted: ORDER_STATUS.MEETUP_SCHEDULED,
   completed: ORDER_STATUS.DELIVERED,
+  Completed: ORDER_STATUS.DELIVERED,
   cancelled: ORDER_STATUS.CANCELLED,
+  Cancelled: ORDER_STATUS.CANCELLED,
   rejected: ORDER_STATUS.CANCELLED,
+  Rejected: ORDER_STATUS.CANCELLED,
 });
 
 const normalizeStatus = status => LEGACY_STATUS_MAP[status] || status;

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const Product = require('./product.model');
 
 const sanitizeUserDocument = (userDoc) => {
 	if (!userDoc) return null;
@@ -137,7 +138,6 @@ const userSchema = new mongoose.Schema(
 const cascadeDeleteSellerListings = async (userId) => {
 	if (!userId) return;
 
-	const Product = mongoose.models.Product || mongoose.model('Product');
 	await Product.deleteMany({ sellerId: userId });
 };
 
