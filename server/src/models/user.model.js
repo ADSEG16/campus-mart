@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const Product = require('./product.model');
 
 const sanitizeUserDocument = (userDoc) => {
 	if (!userDoc) return null;
@@ -14,6 +15,9 @@ const sanitizeUserDocument = (userDoc) => {
 		graduationYear: user.graduationYear,
 		role: user.role,
 		verificationStatus: user.verificationStatus,
+		isVerified: user.isVerified,
+		emailVerified: user.emailVerified,
+		emailVerifiedAt: user.emailVerifiedAt,
 		studentIdUrl: user.studentIdUrl,
 		profileImageUrl: user.profileImageUrl,
 		bio: user.bio,
@@ -131,6 +135,30 @@ const userSchema = new mongoose.Schema(
 	}
 );
 
+const cascadeDeleteSellerListings = async (userId) => {
+	if (!userId) return;
+
+	await Product.deleteMany({ sellerId: userId });
+};
+
+userSchema.pre('findOneAndDelete', async function () {
+	const user = await this.model.findOne(this.getFilter()).select('_id');
+	if (user?._id) {
+		await cascadeDeleteSellerListings(user._id);
+	}
+});
+
+userSchema.pre('deleteOne', { document: true, query: false }, async function () {
+	await cascadeDeleteSellerListings(this._id);
+});
+
+userSchema.pre('deleteOne', { document: false, query: true }, async function () {
+	const user = await this.model.findOne(this.getFilter()).select('_id');
+	if (user?._id) {
+		await cascadeDeleteSellerListings(user._id);
+	}
+});
+
 userSchema.set('toJSON', {
 	transform: (doc, ret) => sanitizeUserDocument(ret),
 });
@@ -147,7 +175,7 @@ userSchema.pre('save', async function () {
 		return;
 	}
 
-	const salt = await bcrypt.genSalt(10);
+	const salt = await bcrypt.genSalt(12);
 	this.password = await bcrypt.hash(this.password, salt);
 });
 

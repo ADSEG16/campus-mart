@@ -10,7 +10,7 @@ const MarketplaceDashboard = () => {
   const { listings, isLoading, loadError } = useListings();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
   
-  const categories = ["All Items", "Textbooks", "Electronics", "Dorm Life", "Tickets"];
+  const categories = ["All Items", "Textbooks", "Electronics", "Clothing", "Furniture", "Stationery", "Services", "Other"];
   
   // read search query from url
   const location = useLocation();
@@ -119,6 +119,12 @@ const MarketplaceDashboard = () => {
                 <span className={`absolute top-2 sm:top-3 left-2 sm:left-3 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs font-medium ${getConditionColor(listing.condition, listing.conditionColor)}`}>
                   {listing.condition}
                 </span>
+
+                {listing.isRecommended && (
+                  <span className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                    Recommended
+                  </span>
+                )}
                 
                 {/* Price Tag */}
                 <span className="absolute top-2 sm:top-3 right-12 sm:right-14 bg-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-sm font-bold text-gray-900 shadow-sm">

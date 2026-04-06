@@ -6,6 +6,7 @@ const productRoutes = require('./routes/product.routes');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const recommendationRoutes = require('./routes/recommendation.routes');
+const docsRoutes = require('./routes/docs.routes');
 const errorHandler = require('./middleware/error.middleware');
 const { sendSuccess } = require('./utils/response');
 const app = express();
@@ -17,6 +18,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/docs', docsRoutes);
 app.get("/api/health", (req, res) => {
 return sendSuccess(res, {
 statusCode: 200,

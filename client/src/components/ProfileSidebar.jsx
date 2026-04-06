@@ -6,6 +6,8 @@ import {
   CheckCircle
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { getCurrentUser } from "../api/auth";
+import { getStoredAuthToken } from "../api/http";
 
 const ProfileSidebar = () => {
   const navigate = useNavigate();
@@ -17,7 +19,7 @@ const ProfileSidebar = () => {
     { id: 3, name: "Settings", icon: <Settings className="h-5 w-5" />, path: "/settings" }
   ];
 
-  const currentUser = React.useMemo(() => {
+  const initialUser = React.useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("currentUser") || "{}");
     } catch {
@@ -25,9 +27,35 @@ const ProfileSidebar = () => {
     }
   }, []);
 
+  const [currentUser, setCurrentUser] = React.useState(initialUser);
+
+  React.useEffect(() => {
+    const syncCurrentUser = async () => {
+      const token = getStoredAuthToken();
+      if (!token) return;
+
+      try {
+        const response = await getCurrentUser({ token });
+        const freshUser = response?.data;
+        if (freshUser && typeof freshUser === "object") {
+          setCurrentUser(freshUser);
+          localStorage.setItem("currentUser", JSON.stringify(freshUser));
+        }
+      } catch {
+        // Keep existing local user if refresh fails.
+      }
+    };
+
+    syncCurrentUser();
+  }, []);
+
   const fullName = currentUser?.fullName || "Campus User";
   const email = currentUser?.email || "Not provided";
-  const isVerified = Boolean(currentUser?.emailVerified);
+  const isVerified = Boolean(
+    currentUser?.isVerified ||
+    currentUser?.emailVerified ||
+    String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
+  );
   const initials = fullName
     .split(" ")
     .slice(0, 2)

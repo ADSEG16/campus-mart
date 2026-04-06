@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ListingsContext } from "./ListingsContext";
 import { fetchProducts } from "../api/products";
+import { fetchRecommendations } from "../api/recommendations";
+import { getStoredAuthToken } from "../api/http";
 
 export const ListingsProvider = ({ children }) => {
   const [listings, setListings] = useState([]);
@@ -11,8 +13,31 @@ export const ListingsProvider = ({ children }) => {
     try {
       setIsLoading(true);
       setLoadError(null);
-      const result = await fetchProducts();
-      setListings(result);
+
+      const token = getStoredAuthToken();
+      const [result, recommended] = await Promise.all([
+        fetchProducts(),
+        token ? fetchRecommendations({ token }).catch(() => []) : Promise.resolve([]),
+      ]);
+
+      const recommendedIds = new Set((recommended || []).map((item) => String(item.id)));
+      const merged = [...result];
+
+      (recommended || []).forEach((item) => {
+        const exists = merged.some((existing) => String(existing.id) === String(item.id));
+        if (!exists) {
+          merged.push(item);
+        }
+      });
+
+      const ranked = merged
+        .map((item) => ({
+          ...item,
+          isRecommended: recommendedIds.has(String(item.id)),
+        }))
+        .sort((a, b) => Number(Boolean(b.isRecommended)) - Number(Boolean(a.isRecommended)));
+
+      setListings(ranked);
     } catch (error) {
       setLoadError(error.message || "Failed to load listings");
     } finally {

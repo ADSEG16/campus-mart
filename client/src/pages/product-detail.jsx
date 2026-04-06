@@ -4,6 +4,8 @@ import { Link, useParams } from "react-router-dom";
 import Navbar from "../components/navbar";
 import ConfirmInterestModal from "../components/ConfirmInterestModal";
 import { fetchProductById } from "../api/products";
+import { getStoredAuthToken } from "../api/http";
+import { createOrder } from "../api/orders";
 
 export default function ProductDetail() {
     const [showModal, setShowModal] = useState(false);
@@ -11,6 +13,7 @@ export default function ProductDetail() {
     const [product, setProduct] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
+    const [actionError, setActionError] = useState("");
     const { id } = useParams();
 
     useEffect(() => {
@@ -86,10 +89,14 @@ export default function ProductDetail() {
                 <div className="flex items-center text-sm text-gray-600 mb-6">
                     <Link to="/dashboard" className="hover:text-gray-900">Marketplace</Link>
                     <span className="mx-2">›</span>
-                    <Link to="/dashboard" className="hover:text-gray-900">Electronics</Link>
+                    <Link to="/dashboard" className="hover:text-gray-900">{product.category}</Link>
                     <span className="mx-2">›</span>
                     <span className="text-gray-900">{product.title}</span>
                 </div>
+
+                {actionError && (
+                    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actionError}</div>
+                )}
 
                 <div className="grid lg:grid-cols-2 gap-8">
                     {/* Image Gallery */}
@@ -224,10 +231,33 @@ export default function ProductDetail() {
                 </div>
             </div>
 
-            {showModal && <ConfirmInterestModal product={product} onClose={() => setShowModal(false)} onConfirm={() => {
-                setShowModal(false);
-                window.location.href = '/messages';
-            }} />}
+            {showModal && (
+                <ConfirmInterestModal
+                    product={product}
+                    onClose={() => setShowModal(false)}
+                    onConfirm={async () => {
+                        try {
+                            const token = getStoredAuthToken();
+                            if (!token) {
+                                setActionError("Please login to create an order.");
+                                setShowModal(false);
+                                return;
+                            }
+
+                            await createOrder({
+                                token,
+                                items: [{ productId: product.id, quantity: 1 }],
+                            });
+
+                            setShowModal(false);
+                            window.location.href = `/messages?chat=${product?.seller?.id || ""}`;
+                        } catch (error) {
+                            setActionError(error.message || "Failed to create order.");
+                            setShowModal(false);
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

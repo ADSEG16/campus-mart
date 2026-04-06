@@ -139,7 +139,7 @@ const TransactionHistory = () => {
     <div className="w-full relative">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Transaction History</h1>
+        {/* <h1 className="text-2xl font-bold text-gray-900 mb-2">Transaction History</h1> */}
         <p className="text-gray-600">Review your past buys and sells within the campus community.</p>
       </div>
 

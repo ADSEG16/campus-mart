@@ -5,10 +5,11 @@ const { comparePassword } = require('../utils/hashPassword');
 const { uploadSingleProfileImage, uploadStudentIdDocument } = require('../services/product.service');
 const { sendSuccess, sendError } = require('../utils/response');
 
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = '24h';
 const SCHOOL_EMAIL_DOMAIN = '@st.ug.edu.gh';
 const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TOKEN_TTL_MS = 1 * 60 * 60 * 1000; // 1 hour
+const DEFAULT_SMTP_FROM = 'CampusMart <no-reply@st.ug.edu.gh>';
 
 const parseBooleanEnv = (value, fallback = false) => {
 	if (typeof value !== 'string') {
@@ -118,23 +119,35 @@ const createSmtpTransport = () => {
 
 const resolveSmtpFrom = () => {
 	const configuredFrom = (process.env.SMTP_FROM || '').trim();
+	const smtpUser = (process.env.SMTP_USER || '').trim();
+
+	const fallbackSender = smtpUser ? `CampusMart <${smtpUser}>` : DEFAULT_SMTP_FROM;
+
 	if (!configuredFrom) {
-		return process.env.SMTP_USER;
+		return fallbackSender;
 	}
 
 	if (configuredFrom.includes('<') && configuredFrom.includes('>')) {
 		return configuredFrom;
 	}
 
-	const emailMatch = configuredFrom.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+	const emailMatch = configuredFrom.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi);
 	if (!emailMatch) {
-		return process.env.SMTP_USER;
+		return fallbackSender;
 	}
 
-	const email = emailMatch[0];
-	const displayName = configuredFrom.replace(email, '').replace(/[<>\"]/g, '').trim();
+	const email = String(emailMatch[0]).trim();
+	if ((email.match(/@/g) || []).length !== 1) {
+		return fallbackSender;
+	}
 
-	return displayName ? `${displayName} <${email}>` : email;
+	const displayName = configuredFrom
+		.replace(email, '')
+		.replace(/[<>\"]/g, '')
+		.replace(/[:;,]+$/g, '')
+		.trim();
+
+	return displayName ? `${displayName} <${email}>` : `CampusMart <${email}>`;
 };
 
 const sendEmailVerificationMessage = async ({ recipientEmail, recipientFullName, token }) => {
@@ -391,6 +404,8 @@ const ensureEmailVerified = user => {
 	return Boolean(user && user.emailVerified);
 };
 
+const hasDigit = (value) => /\d/.test(String(value || ''));
+
 const signup = async (req, res, next) => {
 	try {
 		const {
@@ -412,6 +427,13 @@ const signup = async (req, res, next) => {
 
 		if (password !== confirmPassword) {
 			return sendError(res, { statusCode: 400, message: 'Passwords do not match' });
+		}
+
+		if (hasDigit(fullName)) {
+			return sendError(res, {
+				statusCode: 400,
+				message: 'fullName must contain text only (no numbers)',
+			});
 		}
 
 		const existingUser = await User.findOne({ email: email.toLowerCase() });

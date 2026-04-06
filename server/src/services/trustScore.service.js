@@ -5,7 +5,8 @@ const TRUST_SCORE_RULES = Object.freeze({
   MIN: 0,
   MAX: 100,
   SUCCESSFUL_DELIVERY_REWARD: 5,
-  CANCELLATION_PENALTY: 2,
+  CANCELLATION_PENALTY: 5,
+  ADMIN_COMPLAINT_PENALTY: 10,
   POSITIVE_REVIEW_REWARD: 1,
   NEGATIVE_REVIEW_PENALTY: 1,
   LOW_TRUST_FLAG_THRESHOLD: 20,
@@ -112,6 +113,7 @@ const applyReviewTrustScore = async (review) => {
 
 module.exports = {
   TRUST_SCORE_RULES,
+  updateUserTrustScore,
   applySuccessfulDeliveryTrustScore,
   applyCancellationTrustScore,
   applyReviewTrustScore,
