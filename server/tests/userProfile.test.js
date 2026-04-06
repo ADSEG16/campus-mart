@@ -69,4 +69,32 @@ describe('User profile patch authorization', () => {
     expect(response.body.message).toBe('User profile updated successfully');
     expect(save).toHaveBeenCalledTimes(1);
   });
+
+  it('returns public profile without authentication', async () => {
+    User.findById.mockReturnValue({
+      select: jest.fn().mockResolvedValue({
+        _id: '507f1f77bcf86cd799439011',
+        fullName: 'Public Student',
+        department: 'Computer Science',
+        graduationYear: 2027,
+        bio: 'Builder',
+        trustScore: 65,
+        isVerified: true,
+        verificationStatus: 'verified',
+        profileImageUrl: null,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    const response = await request(app).get('/api/users/public/507f1f77bcf86cd799439011');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.message).toBe('Public user profile fetched successfully');
+    expect(response.body.data).toEqual(
+      expect.objectContaining({
+        fullName: 'Public Student',
+        trustScore: 65,
+      })
+    );
+  });
 });

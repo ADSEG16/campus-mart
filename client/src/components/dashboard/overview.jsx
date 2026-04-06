@@ -55,7 +55,7 @@ const MarketplaceDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center max-w-6xl mx-auto px-4 sm:px-6 bg-white">
+      <div className="flex min-h-[60vh] items-center justify-center max-w-[1400px] mx-auto px-3 sm:px-4 bg-white">
         <div className="w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 p-8 text-center text-gray-600">
           Loading listings...
         </div>
@@ -65,7 +65,7 @@ const MarketplaceDashboard = () => {
 
   if (loadError) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center max-w-6xl mx-auto px-4 sm:px-6 bg-white">
+      <div className="flex min-h-[60vh] items-center justify-center max-w-[1400px] mx-auto px-3 sm:px-4 bg-white">
         <div className="w-full max-w-md rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
           {loadError}
         </div>
@@ -74,7 +74,7 @@ const MarketplaceDashboard = () => {
   }
 
   return (
-    <div className="flex flex-col justify-start max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-4 sm:py-6 bg-white overflow-x-hidden">
+    <div className="flex flex-col justify-start max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-4 sm:py-6 bg-white overflow-x-hidden">
       {/* Categories - Responsive */}
       <div className="mb-6 border-b border-gray-200 max-w-full overflow-x-auto overscroll-x-contain">
         <div className="flex w-max min-w-full space-x-4 pb-4 px-1 sm:space-x-6">
@@ -161,7 +161,20 @@ const MarketplaceDashboard = () => {
           ))
         ) : (
           <div className="col-span-full text-center py-12 text-gray-500">
-            No items found in this category
+            <p>
+              {searchQuery
+                ? `No items found for "${searchQuery}"`
+                : "No items found in this category"}
+            </p>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => navigate("/marketplace")}
+                className="mt-3 inline-flex items-center rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Clear search
+              </button>
+            )}
           </div>
         )}
       </div>

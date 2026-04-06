@@ -53,7 +53,6 @@ const ProfileSidebar = () => {
   const email = currentUser?.email || "Not provided";
   const isVerified = Boolean(
     currentUser?.isVerified ||
-    currentUser?.emailVerified ||
     String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
   );
   const initials = fullName

@@ -4,6 +4,7 @@ const {
 	listOrders,
 	createOrderReview,
 	listSellerReviews,
+	reportReviewAbuse,
 	getOrderDetail,
 	confirmDelivery,
 	updateOrderStatus,
@@ -17,6 +18,7 @@ router.post('/', requireUser, createOrder);
 router.get('/', requireUser, listOrders);
 router.get('/seller/:sellerId/reviews', listSellerReviews);
 router.post('/:orderId/reviews', requireUser, createOrderReview);
+router.post('/reviews/:reviewId/report', requireUser, reportReviewAbuse);
 router.get('/:orderId', requireUser, getOrderDetail);
 router.patch('/:orderId/confirm-delivery', requireUser, confirmDelivery);
 router.patch('/:orderId/status', requireUser, updateOrderStatus);

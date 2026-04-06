@@ -149,3 +149,22 @@ export const submitOrderReview = async ({ token, orderId, rating, comment }) => 
     body: { rating, comment },
   });
 };
+
+export const listSellerReviews = async ({ sellerId }) => {
+  const response = await apiRequest(`/orders/seller/${encodeURIComponent(sellerId)}/reviews`, {
+    method: "GET",
+  });
+
+  return {
+    reviews: response?.data || [],
+    summary: response?.summary || response?.extras?.summary || { averageRating: 0, ratingCount: 0 },
+  };
+};
+
+export const reportReviewAbuse = async ({ token, reviewId, reason }) => {
+  return apiRequest(`/orders/reviews/${encodeURIComponent(reviewId)}/report`, {
+    method: "POST",
+    token,
+    body: { reason },
+  });
+};

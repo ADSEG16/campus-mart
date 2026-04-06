@@ -35,6 +35,8 @@ const getAllowedNextStatuses = currentStatus => ORDER_ALLOWED_TRANSITIONS[curren
 
 const canTransition = (currentStatus, nextStatus) => getAllowedNextStatuses(currentStatus).includes(nextStatus);
 
+const SELLER_RESPONSE_WINDOW_HOURS = 48;
+
 const createOrderReview = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -147,12 +149,88 @@ const listSellerReviews = async (req, res, next) => {
         ratingCount: 0,
       };
 
+    const safeReviews = reviews.map((review) => {
+      const reviewObject = typeof review.toObject === 'function' ? review.toObject() : review;
+      const canExposeReason = reviewObject?.report?.status !== 'pending';
+
+      return {
+        ...reviewObject,
+        report: {
+          isReported: Boolean(reviewObject?.report?.isReported),
+          status: reviewObject?.report?.status || null,
+          reason: canExposeReason ? (reviewObject?.report?.reason || '') : '',
+          reportedAt: reviewObject?.report?.reportedAt || null,
+        },
+      };
+    });
+
     return sendSuccess(res, {
       message: 'Seller reviews fetched successfully',
-      data: reviews,
+      data: safeReviews,
       extras: {
         sellerId,
         summary,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const reportReviewAbuse = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const { reason } = req.body || {};
+
+    if (!mongoose.Types.ObjectId.isValid(String(reviewId || ''))) {
+      return sendError(res, { statusCode: 400, message: 'Invalid reviewId' });
+    }
+
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return sendError(res, { statusCode: 400, message: 'Report reason is required' });
+    }
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return sendError(res, { statusCode: 404, message: 'Review not found' });
+    }
+
+    if (review.report?.isReported && review.report?.status === 'pending') {
+      return sendError(res, { statusCode: 409, message: 'This review has already been reported and is pending moderation' });
+    }
+
+    review.report = {
+      ...(review.report || {}),
+      isReported: true,
+      reason: reason.trim(),
+      reportedBy: req.user._id,
+      reportedAt: new Date(),
+      status: 'pending',
+      adminNote: '',
+      resolvedBy: null,
+      resolvedAt: null,
+    };
+
+    await review.save();
+
+    await AuditEvent.create({
+      eventType: 'review.reported',
+      actorId: req.user._id,
+      entityType: 'order',
+      entityId: review.orderId,
+      payload: {
+        reviewId: review._id,
+        reason: review.report.reason,
+        revieweeId: review.revieweeId,
+      },
+    });
+
+    return sendSuccess(res, {
+      statusCode: 201,
+      message: 'Review reported successfully',
+      data: {
+        reviewId: String(review._id),
+        reportStatus: review.report.status,
       },
     });
   } catch (error) {
@@ -462,6 +540,27 @@ const updateOrderStatus = async (req, res, next) => {
       });
     }
 
+    if (
+      currentStatus === ORDER_STATUS.PENDING &&
+      isSeller &&
+      !isAdmin &&
+      [ORDER_STATUS.MEETUP_SCHEDULED, ORDER_STATUS.CANCELLED].includes(normalizedNextStatus)
+    ) {
+      const createdAt = new Date(order.createdAt);
+      const deadline = new Date(createdAt.getTime() + SELLER_RESPONSE_WINDOW_HOURS * 60 * 60 * 1000);
+
+      if (Date.now() > deadline.getTime()) {
+        return sendError(res, {
+          statusCode: 422,
+          message: 'Seller acceptance or rejection window has expired for this pending order',
+          extras: {
+            deadline,
+            maxResponseHours: SELLER_RESPONSE_WINDOW_HOURS,
+          },
+        });
+      }
+    }
+
     if (normalizedNextStatus === ORDER_STATUS.MEETUP_SCHEDULED) {
       if (!['verified', 'custom'].includes(meetupType)) {
         return sendError(res, {
@@ -554,6 +653,7 @@ module.exports = {
   listOrders,
   createOrderReview,
   listSellerReviews,
+  reportReviewAbuse,
   getOrderDetail,
   confirmDelivery,
   updateOrderStatus,

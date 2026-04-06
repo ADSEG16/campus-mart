@@ -14,6 +14,7 @@ const CampusNavbar = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
   const initialUser = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("currentUser") || "{}");
@@ -84,6 +85,28 @@ const CampusNavbar = () => {
 
     syncCurrentUser();
   }, [token]);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollingDown = currentScrollY > lastScrollY;
+
+      if (currentScrollY <= 24) {
+        setIsNavVisible(true);
+      } else if (scrollingDown && currentScrollY > 80) {
+        setIsNavVisible(false);
+      } else {
+        setIsNavVisible(true);
+      }
+
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const markAllNotificationsAsRead = React.useCallback(() => {
     localStorage.setItem(readMarkerKey, new Date().toISOString());
@@ -247,8 +270,12 @@ const CampusNavbar = () => {
   );
 
   return (
-    <nav className="w-full bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-3 flex items-center justify-between gap-4">
+    <nav
+      className={`sticky top-0 z-40 w-full border-b border-gray-200 bg-white shadow-sm transition-transform duration-300 ${
+        isMobileMenuOpen || isNavVisible ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
+      <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-3 flex items-center justify-between gap-4">
       {/* Logo */}
       <BrandLogo to="/marketplace" compact />
 
@@ -260,7 +287,7 @@ const CampusNavbar = () => {
               type="text"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search textbooks, dorm gear, electronics..."
+              placeholder="Search textbooks, clothing, services, electronics..."
               className="w-full border border-gray-300 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-gray-400"
             />
             {/* Search icon */}

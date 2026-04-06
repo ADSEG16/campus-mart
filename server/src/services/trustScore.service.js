@@ -1,4 +1,5 @@
 const User = require('../models/user.model');
+const AuditEvent = require('../models/auditEvent.model');
 
 const TRUST_SCORE_RULES = Object.freeze({
   DEFAULT: 50,
@@ -25,7 +26,7 @@ const getLowTrustFlagThreshold = () => {
   return clampScore(parsed);
 };
 
-const updateUserTrustScore = async (userId, delta) => {
+const updateUserTrustScore = async (userId, delta, options = {}) => {
   if (!userId) {
     return null;
   }
@@ -53,6 +54,26 @@ const updateUserTrustScore = async (userId, delta) => {
     await User.findByIdAndUpdate(userId, { trustScore: nextScore });
   }
 
+  if (delta !== 0) {
+    try {
+      await AuditEvent.create({
+        eventType: 'trust.score_changed',
+        actorId: options.actorId || user._id,
+        entityType: 'user',
+        entityId: user._id,
+        payload: {
+          reason: options.reason || 'trust_score_adjustment',
+          previousScore: currentScore,
+          trustScore: nextScore,
+          delta,
+          context: options.context || {},
+        },
+      });
+    } catch (error) {
+      // Trust updates should not fail if analytics logging fails.
+    }
+  }
+
   return {
     userId: String(userId),
     previousScore: currentScore,
@@ -65,8 +86,22 @@ const updateUserTrustScore = async (userId, delta) => {
 
 const applySuccessfulDeliveryTrustScore = async (order) => {
   const [buyer, seller] = await Promise.all([
-    updateUserTrustScore(order?.buyerId, TRUST_SCORE_RULES.SUCCESSFUL_DELIVERY_REWARD),
-    updateUserTrustScore(order?.sellerId, TRUST_SCORE_RULES.SUCCESSFUL_DELIVERY_REWARD),
+    updateUserTrustScore(order?.buyerId, TRUST_SCORE_RULES.SUCCESSFUL_DELIVERY_REWARD, {
+      actorId: order?.sellerId || order?.buyerId,
+      reason: 'order_delivered',
+      context: {
+        orderId: order?._id,
+        role: 'buyer',
+      },
+    }),
+    updateUserTrustScore(order?.sellerId, TRUST_SCORE_RULES.SUCCESSFUL_DELIVERY_REWARD, {
+      actorId: order?.buyerId || order?.sellerId,
+      reason: 'order_delivered',
+      context: {
+        orderId: order?._id,
+        role: 'seller',
+      },
+    }),
   ]);
 
   return {
@@ -76,8 +111,12 @@ const applySuccessfulDeliveryTrustScore = async (order) => {
   };
 };
 
-const applyCancellationTrustScore = async (userId) => {
-  const updated = await updateUserTrustScore(userId, -TRUST_SCORE_RULES.CANCELLATION_PENALTY);
+const applyCancellationTrustScore = async (userId, options = {}) => {
+  const updated = await updateUserTrustScore(userId, -TRUST_SCORE_RULES.CANCELLATION_PENALTY, {
+    actorId: options.actorId || userId,
+    reason: options.reason || 'order_cancelled',
+    context: options.context || {},
+  });
 
   return {
     event: 'cancelled',
@@ -85,7 +124,7 @@ const applyCancellationTrustScore = async (userId) => {
   };
 };
 
-const applyReviewTrustScore = async (review) => {
+const applyReviewTrustScore = async (review, options = {}) => {
   if (!review || !review.revieweeId) {
     return {
       event: 'review',
@@ -101,7 +140,14 @@ const applyReviewTrustScore = async (review) => {
     delta = -TRUST_SCORE_RULES.NEGATIVE_REVIEW_PENALTY;
   }
 
-  const updated = await updateUserTrustScore(review.revieweeId, delta);
+  const updated = await updateUserTrustScore(review.revieweeId, delta, {
+    actorId: options.actorId || review.reviewerId || review.revieweeId,
+    reason: delta > 0 ? 'positive_review' : delta < 0 ? 'negative_review' : 'neutral_review',
+    context: {
+      orderId: options.orderId || review.orderId,
+      rating: review.rating,
+    },
+  });
 
   return {
     event: 'review',

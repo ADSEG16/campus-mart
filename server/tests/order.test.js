@@ -194,6 +194,38 @@ describe('Order routes', () => {
     expect(monitorUserCancellationBehavior).not.toHaveBeenCalled();
   });
 
+  it('blocks seller acceptance/rejection after 48 hours for pending orders', async () => {
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+
+    const save = jest.fn().mockResolvedValue(undefined);
+    const orderDoc = {
+      _id: 'order-1',
+      buyerId: { toString: () => 'buyer-1' },
+      sellerId: { toString: () => 'seller-1' },
+      status: ORDER_STATUS.PENDING,
+      buyerConfirmed: false,
+      sellerConfirmed: false,
+      createdAt: new Date(Date.now() - 49 * 60 * 60 * 1000),
+      save,
+    };
+
+    Order.findById.mockResolvedValue(orderDoc);
+
+    const response = await request(app)
+      .patch('/api/orders/order-1/status')
+      .set('x-user-id', 'seller-1')
+      .send({
+        nextStatus: ORDER_STATUS.MEETUP_SCHEDULED,
+        meetupType: 'verified',
+        meetupLocation: 'UG Library Entrance',
+        meetupScheduledFor: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.body.message).toBe('Seller acceptance or rejection window has expired for this pending order');
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('records buyer delivery confirmation through confirm-delivery endpoint', async () => {
     User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
 
@@ -469,7 +501,47 @@ describe('Order routes', () => {
     const response = await request(app).get('/api/orders/seller/507f1f77bcf86cd799439011/reviews');
 
     expect(response.statusCode).toBe(200);
-    expect(response.body.data).toEqual(reviews);
+    expect(response.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: 'review-1',
+          rating: 5,
+          report: expect.objectContaining({
+            isReported: false,
+          }),
+        }),
+      ])
+    );
     expect(response.body.summary).toEqual({ averageRating: 4.5, ratingCount: 2 });
+  });
+
+  it('reports an abusive review for moderation', async () => {
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+
+    const save = jest.fn().mockResolvedValue(undefined);
+    Review.findById.mockResolvedValue({
+      _id: '507f1f77bcf86cd799439021',
+      orderId: '507f1f77bcf86cd799439031',
+      revieweeId: '507f1f77bcf86cd799439041',
+      report: {
+        isReported: false,
+      },
+      save,
+    });
+
+    const response = await request(app)
+      .post('/api/orders/reviews/507f1f77bcf86cd799439021/report')
+      .set('x-user-id', 'buyer-1')
+      .send({ reason: 'Contains abusive language' });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body.message).toBe('Review reported successfully');
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(AuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'review.reported',
+        actorId: 'buyer-1',
+      })
+    );
   });
 });

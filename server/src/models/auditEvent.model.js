@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const AUDIT_EVENT_TYPES = Object.freeze([
   'order.status_changed',
   'order.delivery_confirmation_recorded',
+  'trust.score_changed',
+  'review.reported',
+  'review.report_resolved',
   'moderation.verification_approved',
   'moderation.verification_rejected',
   'admin.complaint_penalty_applied',
