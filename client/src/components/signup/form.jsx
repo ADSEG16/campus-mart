@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProgressBar from "./progressBar";
+import { signupUser } from '../../api/auth';
+import BrandLogo from '../BrandLogo';
 
 export default function SignUpForm() {
   const navigate = useNavigate();
+        const hasDigit = (value) => /\d/.test(String(value || ''));
     const [formData, setFormData] = useState({
         fullName: '',
         department: '',
@@ -12,6 +15,8 @@ export default function SignUpForm() {
         graduationYear: '',
         confirmPassword: ''
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     const handleChange = (e) => {
         setFormData({
@@ -20,39 +25,72 @@ export default function SignUpForm() {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Add validation here
+        setErrorMessage('');
+
         if (formData.password !== formData.confirmPassword) {
-            alert("Passwords don't match!");
+            setErrorMessage("Passwords don't match.");
             return;
         }
-        console.log('Form submitted:', formData);
-        // Proceed to next step or submit to API
 
-        // Save data to localStorage or context
-        localStorage.setItem('signupData', JSON.stringify(formData));
-        
-        // Navigate to verification step
-        navigate('/signup/verification');
+        if (hasDigit(formData.fullName)) {
+            setErrorMessage('Name must contain text only (no numbers).');
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            const { token, user } = await signupUser(formData);
+
+            localStorage.setItem('authToken', token || '');
+            localStorage.setItem('currentUser', JSON.stringify(user || {}));
+            localStorage.setItem(
+                'signupFlow',
+                JSON.stringify({
+                    email: formData.email,
+                    createdAt: Date.now(),
+                })
+            );
+
+            navigate('/signup/verification');
+        } catch (error) {
+            setErrorMessage(error.message || 'Signup failed');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
-        <div className="container-main flex flex-col items-center justify-center min-h-screen px-4">
+        <div className="container-main flex flex-col items-center justify-center w-full px-4 py-6 sm:py-10">
+            <BrandLogo
+                to="/"
+                stacked
+                className="mb-4 sm:mb-6"
+                iconClassName="h-10 w-10 sm:h-12 sm:w-12"
+                textClassName="text-xl sm:text-2xl"
+            />
+
             {/* Progress Bar */}
              <div className="w-full bg-white mb-2">
-                <div className="max-w-2xl mx-auto px-4 py-6">
+                <div className="max-w-2xl mx-auto px-1 sm:px-4 py-4 sm:py-6">
                     <ProgressBar currentStep={1} />
                 </div>
             </div>
 
-            <div className="border border-gray-300 rounded-2xl p-8 w-2xl max-w-3xl shadow-lg">
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Step 1: Account Details</h2>
+            <div className="w-full max-w-3xl border border-gray-300 rounded-xl sm:rounded-2xl p-4 sm:p-8 shadow-lg">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Step 1: Account Details</h2>
                 <p className="text-gray-600 mb-6">Let's get started with your basic information.</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {errorMessage && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorMessage}
+                        </div>
+                    )}
+
                     {/* 2-Column Grid Layout */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                         {/* Left Column - 3 Fields */}
                         <div className="space-y-4">
                             {/* Full Name */}
@@ -67,6 +105,8 @@ export default function SignUpForm() {
                                     placeholder="Enter your full name"
                                     value={formData.fullName}
                                     onChange={handleChange}
+                                    pattern="^[^0-9]+$"
+                                    title="Use text only. Numbers are not allowed."
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
@@ -169,9 +209,10 @@ export default function SignUpForm() {
                     <div className="flex justify-center pt-4">
                         <button 
                             type="submit" 
+                            disabled={isSubmitting}
                         className="w-full bg-[#137FEC] text-white py-3 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium mt-4"
                         >
-                            Continue to Verification
+                            {isSubmitting ? 'Creating Account...' : 'Continue to Verification'}
                         </button>
                     </div>
                 </form>
@@ -179,13 +220,13 @@ export default function SignUpForm() {
                 {/* Login Link */}
                 <p className="mt-6 text-sm text-gray-600 text-center">
                     Already have an account?{' '}
-                    <a href="/" className="text-blue-600 hover:text-blue-800 font-medium">
+                    <Link to="/" className="text-blue-600 hover:text-blue-800 font-medium">
                         Log in
-                    </a>
+                    </Link>
                 </p>
             </div>
             <div>
-                <div className="mt-8 flex flex-row justify-center items-center gap-6 text-gray-500 text-sm">
+                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-6 text-gray-500 text-sm">
                     <p className="flex items-center">
                         <span className="mr-1 text-[#137FEC]">✓</span> 
                         Verified Student
