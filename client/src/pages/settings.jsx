@@ -1,17 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
-import { User, Lock, Bell, Shield, ChevronRight } from "lucide-react";
+import { User, Lock, Bell, Shield, ChevronRight, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
 import ProfileSidebar from "../components/ProfileSidebar";
 import { getCurrentUser, updateCurrentUserProfile } from "../api/auth";
 import { getStoredAuthToken } from "../api/http";
 import { useToast } from "../context";
+import {
+    getCurrentUserSettings,
+    updateCurrentUserSettings,
+    getTrustAnalytics,
+    deleteCurrentUserAccount,
+} from "../api/user";
+
+const DEFAULT_SETTINGS = {
+    emailNotifications: true,
+    inAppAlerts: true,
+    marketing: false,
+    twoFactor: true,
+};
 
 export default function Settings() {
     const hasDigit = (value) => /\d/.test(String(value || ""));
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingBio, setIsSavingBio] = useState(false);
     const [isEditingBio, setIsEditingBio] = useState(false);
+    const [isLoadingTrust, setIsLoadingTrust] = useState(false);
+    const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+    const [deactivateConfirmation, setDeactivateConfirmation] = useState("");
+    const [isDeactivating, setIsDeactivating] = useState(false);
     const [saveMessage, setSaveMessage] = useState("");
+    const navigate = useNavigate();
 
     const initialUser = useMemo(() => {
         try {
@@ -29,14 +48,29 @@ export default function Settings() {
             if (!token) return;
 
             try {
-                const response = await getCurrentUser({ token });
+                setIsLoadingTrust(true);
+                const [response, settings, trustAnalytics] = await Promise.all([
+                    getCurrentUser({ token }),
+                    getCurrentUserSettings({ token }),
+                    getTrustAnalytics({ token, limit: 12 }),
+                ]);
                 const freshUser = response?.data;
                 if (freshUser && typeof freshUser === "object") {
                     setCurrentUser(freshUser);
                     localStorage.setItem("currentUser", JSON.stringify(freshUser));
                 }
+
+                setEmailNotifications(Boolean(settings?.emailNotifications));
+                setInAppAlerts(Boolean(settings?.inAppAlerts));
+                setMarketing(Boolean(settings?.marketing));
+                setTwoFactor(Boolean(settings?.twoFactor));
+
+                setCurrentTrustScore(Number(trustAnalytics?.currentTrustScore ?? freshUser?.trustScore ?? 50));
+                setTrustTimeline(Array.isArray(trustAnalytics?.timeline) ? trustAnalytics.timeline : []);
             } catch {
                 // Keep local values if fetch fails.
+            } finally {
+                setIsLoadingTrust(false);
             }
         };
 
@@ -51,7 +85,6 @@ export default function Settings() {
     const email = currentUser?.email || "Not provided";
     const isVerified = Boolean(
         currentUser?.isVerified ||
-        currentUser?.emailVerified ||
         String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
     );
     const initials = fullName
@@ -61,27 +94,13 @@ export default function Settings() {
         .join("")
         .toUpperCase() || "CU";
 
-    const preferencesKey = `settings:preferences:${currentUser?._id || "guest"}`;
-    const savedPrefs = (() => {
-        try {
-            return JSON.parse(localStorage.getItem(preferencesKey) || "{}");
-        } catch {
-            return {};
-        }
-    })();
-
-    const [emailNotifications, setEmailNotifications] = useState(savedPrefs.emailNotifications ?? true);
-    const [inAppAlerts, setInAppAlerts] = useState(savedPrefs.inAppAlerts ?? true);
-    const [marketing, setMarketing] = useState(savedPrefs.marketing ?? false);
-    const [twoFactor, setTwoFactor] = useState(savedPrefs.twoFactor ?? true);
+    const [emailNotifications, setEmailNotifications] = useState(DEFAULT_SETTINGS.emailNotifications);
+    const [inAppAlerts, setInAppAlerts] = useState(DEFAULT_SETTINGS.inAppAlerts);
+    const [marketing, setMarketing] = useState(DEFAULT_SETTINGS.marketing);
+    const [twoFactor, setTwoFactor] = useState(DEFAULT_SETTINGS.twoFactor);
+    const [trustTimeline, setTrustTimeline] = useState([]);
+    const [currentTrustScore, setCurrentTrustScore] = useState(currentUser?.trustScore || 50);
     const { showToast } = useToast();
-
-    useEffect(() => {
-        localStorage.setItem(
-            preferencesKey,
-            JSON.stringify({ emailNotifications, inAppAlerts, marketing, twoFactor })
-        );
-    }, [preferencesKey, emailNotifications, inAppAlerts, marketing, twoFactor]);
 
     useEffect(() => {
         setEditableName(currentUser?.fullName || "Campus User");
@@ -143,34 +162,79 @@ export default function Settings() {
 
             showToast("Saving settings...", "info", 1200);
 
-            const response = await updateCurrentUserProfile({
-                token,
-                payload: {
-                    fullName: nextName,
-                    department: nextDepartment,
-                    graduationYear: editableGraduationYear,
-                },
-            });
+            const [response] = await Promise.all([
+                updateCurrentUserProfile({
+                    token,
+                    payload: {
+                        fullName: nextName,
+                        department: nextDepartment,
+                        graduationYear: editableGraduationYear,
+                    },
+                }),
+                updateCurrentUserSettings({
+                    token,
+                    payload: {
+                        emailNotifications,
+                        inAppAlerts,
+                        marketing,
+                        twoFactor,
+                    },
+                }),
+            ]);
 
             const updatedUser = response?.data || {};
+            setCurrentUser(updatedUser);
             localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+
+            setIsLoadingTrust(true);
+            const trustAnalytics = await getTrustAnalytics({ token, limit: 12 }).catch(() => null);
+            if (trustAnalytics) {
+                setCurrentTrustScore(Number(trustAnalytics?.currentTrustScore ?? updatedUser?.trustScore ?? 50));
+                setTrustTimeline(Array.isArray(trustAnalytics?.timeline) ? trustAnalytics.timeline : []);
+            }
 
             setSaveMessage("Settings saved successfully.");
             showToast("Settings saved successfully.", "success");
-            window.location.reload();
         } catch (error) {
             setSaveMessage(error.message || "Failed to update name.");
             showToast(error.message || "Failed to save settings.", "error");
         } finally {
+            setIsLoadingTrust(false);
             setIsSaving(false);
+        }
+    };
+
+    const handleDeactivateAccount = async () => {
+        const token = getStoredAuthToken();
+        if (!token) {
+            showToast("Please log in again.", "error");
+            return;
+        }
+
+        if (deactivateConfirmation.trim().toUpperCase() !== "DEACTIVATE") {
+            showToast("Type DEACTIVATE to confirm account removal.", "error");
+            return;
+        }
+
+        try {
+            setIsDeactivating(true);
+            await deleteCurrentUserAccount({ token, confirmation: deactivateConfirmation.trim() });
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("currentUser");
+            showToast("Account deactivated successfully.", "success");
+            navigate("/login");
+        } catch (error) {
+            showToast(error.message || "Failed to deactivate account.", "error");
+        } finally {
+            setIsDeactivating(false);
         }
     };
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <Navbar />
+            <Navbar variant="settings" />
             
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-8">
+            <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-8">
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Sidebar (desktop only) */}
                     <div className="hidden lg:block lg:w-72 lg:border-r lg:border-gray-200 lg:pr-6">
@@ -183,7 +247,7 @@ export default function Settings() {
                                 </div>
                                 <p className="text-xs text-gray-600 mb-2">
                                     {isVerified
-                                        ? "Your university email has been verified for marketplace access."
+                                        ? "Your student verification has been approved for trusted marketplace access."
                                         : "Complete verification to unlock full marketplace trust features."}
                                 </p>
                                 <div className="flex items-center">
@@ -440,6 +504,64 @@ export default function Settings() {
                             </div>
                         </div>
 
+                        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+                            <div className="flex items-center mb-4">
+                                <TrendingUp className="w-6 h-6 text-blue-600 mr-2" />
+                                <h2 className="text-xl font-semibold text-gray-900">Trust Analytics</h2>
+                            </div>
+
+                            <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+                                <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Current Trust Score</p>
+                                <p className="mt-1 text-2xl font-bold text-blue-900">{Number(currentTrustScore || 0)} / 100</p>
+                            </div>
+
+                            {isLoadingTrust ? (
+                                <p className="text-sm text-gray-500">Loading trust history...</p>
+                            ) : trustTimeline.length > 0 ? (
+                                <div className="space-y-3">
+                                    {trustTimeline.map((event) => {
+                                        const delta = Number(event?.delta || 0);
+                                        const isPositive = delta > 0;
+                                        const isNegative = delta < 0;
+                                        const deltaLabel = `${isPositive ? "+" : ""}${delta}`;
+
+                                        return (
+                                            <div
+                                                key={event.id}
+                                                className="flex items-start justify-between rounded-lg border border-gray-200 px-4 py-3"
+                                            >
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900">{event.reason || "Trust score updated"}</p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {event.timestamp ? new Date(event.timestamp).toLocaleString() : "Unknown time"}
+                                                    </p>
+                                                </div>
+
+                                                <div className="text-right">
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                                            isPositive
+                                                                ? "bg-green-100 text-green-700"
+                                                                : isNegative
+                                                                    ? "bg-red-100 text-red-700"
+                                                                    : "bg-gray-100 text-gray-700"
+                                                        }`}
+                                                    >
+                                                        {deltaLabel}
+                                                    </span>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {event.previousScore ?? "-"} to {event.trustScore ?? "-"}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">No trust score changes recorded yet.</p>
+                            )}
+                        </div>
+
                         {/* Danger Zone */}
                         <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-red-200">
                             <div className="flex items-center justify-between">
@@ -449,8 +571,12 @@ export default function Settings() {
                                         Permanently remove your account and all associated data.
                                     </p>
                                 </div>
-                                <button className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors">
-                                    Discard
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDeactivateModalOpen(true)}
+                                    className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+                                >
+                                    Deactivate
                                 </button>
                             </div>
                         </div>
@@ -474,6 +600,55 @@ export default function Settings() {
                     </div>
                 </div>
             </div>
+
+            {isDeactivateModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <button
+                        type="button"
+                        aria-label="Close deactivate account dialog"
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => {
+                            if (!isDeactivating) {
+                                setIsDeactivateModalOpen(false);
+                            }
+                        }}
+                    />
+
+                    <div className="relative z-10 w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-xl">
+                        <h3 className="text-lg font-semibold text-red-700">Confirm Account Deactivation</h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            This action permanently deletes your account and removes your listings. Type DEACTIVATE to continue.
+                        </p>
+
+                        <input
+                            type="text"
+                            value={deactivateConfirmation}
+                            onChange={(event) => setDeactivateConfirmation(event.target.value)}
+                            placeholder="Type DEACTIVATE"
+                            className="mt-4 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        />
+
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsDeactivateModalOpen(false)}
+                                disabled={isDeactivating}
+                                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeactivateAccount}
+                                disabled={isDeactivating}
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                            >
+                                {isDeactivating ? "Deactivating..." : "Confirm Deactivate"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

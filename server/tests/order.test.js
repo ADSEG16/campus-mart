@@ -469,7 +469,47 @@ describe('Order routes', () => {
     const response = await request(app).get('/api/orders/seller/507f1f77bcf86cd799439011/reviews');
 
     expect(response.statusCode).toBe(200);
-    expect(response.body.data).toEqual(reviews);
+    expect(response.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: 'review-1',
+          rating: 5,
+          report: expect.objectContaining({
+            isReported: false,
+          }),
+        }),
+      ])
+    );
     expect(response.body.summary).toEqual({ averageRating: 4.5, ratingCount: 2 });
+  });
+
+  it('reports an abusive review for moderation', async () => {
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+
+    const save = jest.fn().mockResolvedValue(undefined);
+    Review.findById.mockResolvedValue({
+      _id: '507f1f77bcf86cd799439021',
+      orderId: '507f1f77bcf86cd799439031',
+      revieweeId: '507f1f77bcf86cd799439041',
+      report: {
+        isReported: false,
+      },
+      save,
+    });
+
+    const response = await request(app)
+      .post('/api/orders/reviews/507f1f77bcf86cd799439021/report')
+      .set('x-user-id', 'buyer-1')
+      .send({ reason: 'Contains abusive language' });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body.message).toBe('Review reported successfully');
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(AuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'review.reported',
+        actorId: 'buyer-1',
+      })
+    );
   });
 });

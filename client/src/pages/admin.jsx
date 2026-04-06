@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Bell,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -29,14 +30,17 @@ import { getApiBaseUrl, getStoredAuthToken } from "../api/http";
 import {
   approveUserVerificationByAdmin,
   applyComplaintPenaltyByAdmin,
+  getAdminNotifications,
   getCancellationsTrendAnalytics,
   getFlaggedUsers,
   getFlaggedUsersTrendAnalytics,
   getOrdersByStatusAnalytics,
+  getReportedReviews,
   getRecentModerationActivity,
   getVerificationQueue,
   rejectUserVerificationByAdmin,
   removeListingByAdmin,
+  resolveReviewReport,
   suspendUserByAdmin,
 } from "../api/admin";
 import { fetchProducts } from "../api/products";
@@ -44,8 +48,10 @@ import { useToast } from "../context";
 
 const sidebarItems = [
   { id: "overview", label: "Overview", description: "Health snapshot", icon: LayoutDashboard },
+  { id: "notifications", label: "Alerts", description: "Priority notifications", icon: Bell },
   { id: "verification", label: "Verification Queue", description: "Approve or reject", icon: ShieldCheck },
   { id: "users", label: "User Moderation", description: "Flagged users", icon: Users },
+  { id: "reviews", label: "Review Reports", description: "Abuse moderation", icon: AlertTriangle },
   { id: "listings", label: "Listing Moderation", description: "Review items", icon: ShoppingBag },
   { id: "orders", label: "Orders & Trends", description: "Operational signals", icon: BarChart3 },
   { id: "activity", label: "Activity Log", description: "Recent moderation", icon: Activity },
@@ -113,6 +119,9 @@ export default function AdminPage() {
   const [cancellationsTrend, setCancellationsTrend] = useState([]);
   const [flaggedTrend, setFlaggedTrend] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [reportedReviews, setReportedReviews] = useState([]);
+  const [reportResolutionNote, setReportResolutionNote] = useState("Handled according to community policy");
   const { showToast } = useToast();
 
   const currentUser = useMemo(() => getCurrentUserSnapshot(), []);
@@ -140,6 +149,8 @@ export default function AdminPage() {
       const results = await Promise.allSettled([
         getVerificationQueue({ token }),
         getFlaggedUsers({ token }),
+        getAdminNotifications({ token }),
+        getReportedReviews({ token, status: "pending" }),
         fetchProducts(),
         getOrdersByStatusAnalytics({ token }),
         getCancellationsTrendAnalytics({ token, days: 7 }),
@@ -149,7 +160,17 @@ export default function AdminPage() {
 
       const failures = [];
 
-      const [verificationResult, flaggedResult, listingsResult, ordersResult, cancellationsResult, flaggedTrendResult, activityResult] = results;
+      const [
+        verificationResult,
+        flaggedResult,
+        notificationsResult,
+        reportedReviewsResult,
+        listingsResult,
+        ordersResult,
+        cancellationsResult,
+        flaggedTrendResult,
+        activityResult,
+      ] = results;
 
       if (verificationResult.status === "fulfilled") {
         setVerificationQueue(verificationResult.value);
@@ -161,6 +182,18 @@ export default function AdminPage() {
         setFlaggedUsers(flaggedResult.value);
       } else {
         failures.push("flagged users");
+      }
+
+      if (notificationsResult.status === "fulfilled") {
+        setNotifications(notificationsResult.value);
+      } else {
+        failures.push("admin alerts");
+      }
+
+      if (reportedReviewsResult.status === "fulfilled") {
+        setReportedReviews(reportedReviewsResult.value);
+      } else {
+        failures.push("review reports");
       }
 
       if (listingsResult.status === "fulfilled") {
@@ -300,7 +333,21 @@ export default function AdminPage() {
     });
   };
 
-  const handleExportCsv = async () => {
+  const handleResolveReviewReport = async (reviewId, action) => {
+    await runAction({
+      key: `review:${reviewId}:${action}`,
+      successMessage: `Review report ${action}.`,
+      errorMessage: "Failed to resolve review report.",
+      handler: async () => resolveReviewReport({
+        token: getStoredAuthToken(),
+        reviewId,
+        action,
+        adminNote: reportResolutionNote.trim(),
+      }),
+    });
+  };
+
+  const handleExportCsv = async (reportKey) => {
     try {
       const token = getStoredAuthToken();
       if (!token) {
@@ -308,7 +355,28 @@ export default function AdminPage() {
         return;
       }
 
-      const response = await fetch(`${getApiBaseUrl()}/admin/analytics/orders-by-status/export.csv`, {
+      const exportMap = {
+        orders: {
+          path: "/admin/analytics/orders-by-status/export.csv",
+          filename: "orders-by-status.csv",
+        },
+        flaggedUsers: {
+          path: "/admin/analytics/flagged-users/export.csv",
+          filename: "flagged-users.csv",
+        },
+        reviewReports: {
+          path: "/admin/analytics/review-reports/export.csv",
+          filename: "review-reports.csv",
+        },
+        activity: {
+          path: "/admin/analytics/moderation-activity/export.csv",
+          filename: "moderation-activity.csv",
+        },
+      };
+
+      const selected = exportMap[reportKey] || exportMap.orders;
+
+      const response = await fetch(`${getApiBaseUrl()}${selected.path}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -323,12 +391,12 @@ export default function AdminPage() {
       const url = window.URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "orders-by-status.csv";
+      anchor.download = selected.filename;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
       window.URL.revokeObjectURL(url);
-      showToast("CSV export downloaded.", "success");
+      showToast(`${selected.filename} downloaded.`, "success");
     } catch (error) {
       showToast(error.message || "Failed to export CSV.", "error");
     }
@@ -423,6 +491,29 @@ export default function AdminPage() {
     <div className="space-y-6">
       {renderTopCards()}
 
+      {notifications.length > 0 && (
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-cyan-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Priority alerts</h2>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {notifications.slice(0, 6).map((note) => (
+              <button
+                key={note.id}
+                type="button"
+                onClick={() => setActiveTab(note.targetTab || "notifications")}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-slate-100"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">{note.severity || "info"}</p>
+                <p className="mt-1 font-semibold text-slate-900">{note.title}</p>
+                <p className="mt-1 text-sm text-slate-600">{note.message}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-3">
         {/* <section className="xl:col-span-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
@@ -470,6 +561,108 @@ export default function AdminPage() {
           </div>
         </section>
       </div>
+    </div>
+  );
+
+  const renderNotifications = () => (
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Bell className="h-5 w-5 text-cyan-600" />
+        <h2 className="text-xl font-semibold text-slate-900">Admin notifications</h2>
+      </div>
+      <p className="mt-2 text-sm text-slate-500">Actionable alerts generated from verification, reports, and trust risk signals.</p>
+
+      <div className="mt-4 space-y-3">
+        {notifications.map((note) => (
+          <button
+            type="button"
+            key={note.id}
+            onClick={() => setActiveTab(note.targetTab || "overview")}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left hover:bg-slate-100"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold text-slate-900">{note.title}</p>
+              <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                {note.severity || "info"}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">{note.message}</p>
+          </button>
+        ))}
+        {notifications.length === 0 && <p className="text-sm text-slate-500">No notifications right now.</p>}
+      </div>
+    </section>
+  );
+
+  const renderReviewReports = () => (
+    <div className="space-y-5">
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <h2 className="text-xl font-semibold text-slate-900">Abusive review reports</h2>
+        </div>
+        <p className="mt-2 text-sm text-slate-500">Review and resolve abuse reports submitted by users.</p>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-slate-700">Resolution note</label>
+          <input
+            value={reportResolutionNote}
+            onChange={(event) => setReportResolutionNote(event.target.value)}
+            className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-cyan-500"
+          />
+        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        {reportedReviews.map((review) => (
+          <section key={review._id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">Pending report</p>
+                <p className="mt-1 font-semibold text-slate-900">Rating: {review.rating}/5</p>
+                <p className="text-sm text-slate-500">Review ID: {review._id}</p>
+              </div>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                {review?.report?.status || "pending"}
+              </span>
+            </div>
+
+            <p className="mt-3 text-sm text-slate-700">{review.comment || "No comment provided."}</p>
+
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+              <p><span className="font-semibold text-slate-800">Reason:</span> {review?.report?.reason || "Not provided"}</p>
+              <p className="mt-1"><span className="font-semibold text-slate-800">Reported by:</span> {review?.report?.reportedBy?.fullName || review?.report?.reportedBy?.email || "Unknown"}</p>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleResolveReviewReport(review._id, "actioned")}
+                disabled={actionLoadingKey === `review:${review._id}:actioned`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+              >
+                <ShieldBan className="h-4 w-4" />
+                Take action
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResolveReviewReport(review._id, "dismissed")}
+                disabled={actionLoadingKey === `review:${review._id}:dismissed`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Dismiss report
+              </button>
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {reportedReviews.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+          No pending abusive-review reports.
+        </div>
+      )}
     </div>
   );
 
@@ -732,14 +925,40 @@ export default function AdminPage() {
           <h2 className="text-xl font-semibold text-slate-900">Order status analytics</h2>
           <p className="text-sm text-slate-500">Track the state of market activity and identify operational patterns.</p>
         </div>
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <Download className="h-4 w-4" />
-          Export CSV
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => handleExportCsv("orders")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" />
+            Orders CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportCsv("flaggedUsers")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" />
+            Flagged Users CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportCsv("reviewReports")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" />
+            Review Reports CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportCsv("activity")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" />
+            Activity CSV
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -858,8 +1077,10 @@ export default function AdminPage() {
 
   const renderContent = () => {
     if (activeTab === "overview") return renderOverview();
+    if (activeTab === "notifications") return renderNotifications();
     if (activeTab === "verification") return renderVerification();
     if (activeTab === "users") return renderUsers();
+    if (activeTab === "reviews") return renderReviewReports();
     if (activeTab === "listings") return renderListings();
     if (activeTab === "orders") return renderOrders();
     if (activeTab === "activity") return renderActivity();
@@ -893,7 +1114,7 @@ export default function AdminPage() {
 
       <div className="lg:pl-80">
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -930,7 +1151,7 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
           {errorMessage && (
             <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               {errorMessage}

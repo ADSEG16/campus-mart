@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Heart, MessageCircle, MapPin, Star } from "lucide-react";
+import { AlertTriangle, Heart, MessageCircle, MapPin, Star } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import Navbar from "../components/navbar";
 import ConfirmInterestModal from "../components/ConfirmInterestModal";
 import { fetchProductById } from "../api/products";
 import { getStoredAuthToken } from "../api/http";
-import { createOrder } from "../api/orders";
+import { createOrder, listSellerReviews, reportReviewAbuse } from "../api/orders";
+import { useToast } from "../context";
 
 export default function ProductDetail() {
     const [showModal, setShowModal] = useState(false);
@@ -14,7 +15,11 @@ export default function ProductDetail() {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
     const [actionError, setActionError] = useState("");
+    const [sellerReviews, setSellerReviews] = useState([]);
+    const [reviewSummary, setReviewSummary] = useState({ averageRating: 0, ratingCount: 0 });
+    const [reportingReviewId, setReportingReviewId] = useState("");
     const { id } = useParams();
+    const { showToast } = useToast();
 
     useEffect(() => {
         let isMounted = true;
@@ -46,6 +51,75 @@ export default function ProductDetail() {
         };
     }, [id]);
 
+    useEffect(() => {
+        let mounted = true;
+
+        const loadSellerReviews = async () => {
+            const sellerId = product?.seller?.id;
+            if (!sellerId) {
+                setSellerReviews([]);
+                setReviewSummary({ averageRating: 0, ratingCount: 0 });
+                return;
+            }
+
+            try {
+                const result = await listSellerReviews({ sellerId });
+                if (!mounted) return;
+                setSellerReviews(result?.reviews || []);
+                setReviewSummary(result?.summary || { averageRating: 0, ratingCount: 0 });
+            } catch {
+                if (!mounted) return;
+                setSellerReviews([]);
+                setReviewSummary({ averageRating: 0, ratingCount: 0 });
+            }
+        };
+
+        loadSellerReviews();
+
+        return () => {
+            mounted = false;
+        };
+    }, [product?.seller?.id]);
+
+    const handleReportReview = async (reviewId) => {
+        const token = getStoredAuthToken();
+        if (!token) {
+            showToast("Please login to report a review.", "error");
+            return;
+        }
+
+        const reason = window.prompt("Report reason (required):", "Abusive or inappropriate language");
+        if (!reason || !reason.trim()) {
+            return;
+        }
+
+        try {
+            setReportingReviewId(reviewId);
+            await reportReviewAbuse({ token, reviewId, reason: reason.trim() });
+
+            setSellerReviews((prev) =>
+                prev.map((review) =>
+                    review._id === reviewId
+                        ? {
+                            ...review,
+                            report: {
+                                ...(review.report || {}),
+                                isReported: true,
+                                status: "pending",
+                            },
+                        }
+                        : review
+                )
+            );
+
+            showToast("Review reported successfully.", "success");
+        } catch (error) {
+            showToast(error.message || "Failed to report review.", "error");
+        } finally {
+            setReportingReviewId("");
+        }
+    };
+
     const images = useMemo(() => {
         if (product?.images && product.images.length > 0) {
             return product.images;
@@ -58,7 +132,7 @@ export default function ProductDetail() {
         return (
             <div className="min-h-screen bg-gray-50">
                 <Navbar variant="product" />
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-10">
+                <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-10">
                     <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
                         Loading product details...
                     </div>
@@ -71,7 +145,7 @@ export default function ProductDetail() {
         return (
             <div className="min-h-screen bg-gray-50">
                 <Navbar variant="product" />
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-10">
+                <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-10">
                     <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
                         {errorMessage || "Product not found"}
                     </div>
@@ -84,7 +158,7 @@ export default function ProductDetail() {
         <div className="min-h-screen bg-gray-50">
             <Navbar variant="product" />
             
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-6 py-6">
+            <div className="max-w-[1400px] mx-auto px-3 sm:px-4 lg:px-4 py-6">
                 {/* Breadcrumb */}
                 <div className="flex items-center text-sm text-gray-600 mb-6">
                     <Link to="/dashboard" className="hover:text-gray-900">Marketplace</Link>
@@ -226,6 +300,47 @@ export default function ProductDetail() {
                                     </li>
                                 ))}
                             </ul>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-6 shadow-sm mt-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <h2 className="text-xl font-semibold text-gray-900">Seller Reviews</h2>
+                                <div className="text-sm text-gray-600">
+                                    {Number(reviewSummary?.averageRating || 0).toFixed(1)} / 5 ({reviewSummary?.ratingCount || 0})
+                                </div>
+                            </div>
+
+                            <div className="mt-4 space-y-3">
+                                {sellerReviews.map((review) => (
+                                    <div key={review._id} className="rounded-lg border border-gray-200 p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-900">
+                                                    {review?.reviewerId?.fullName || review?.reviewerId?.email || "Campus User"}
+                                                </p>
+                                                <div className="mt-1 flex items-center gap-1 text-yellow-500">
+                                                    <Star className="w-4 h-4 fill-current" />
+                                                    <span className="text-sm text-gray-900">{review.rating}</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleReportReview(review._id)}
+                                                disabled={reportingReviewId === review._id || review?.report?.status === "pending"}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                                            >
+                                                <AlertTriangle className="h-3.5 w-3.5" />
+                                                {review?.report?.status === "pending" ? "Reported" : "Report abuse"}
+                                            </button>
+                                        </div>
+                                        <p className="mt-2 text-sm text-gray-700">{review.comment || "No comment provided."}</p>
+                                    </div>
+                                ))}
+
+                                {sellerReviews.length === 0 && (
+                                    <p className="text-sm text-gray-500">No reviews yet for this seller.</p>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

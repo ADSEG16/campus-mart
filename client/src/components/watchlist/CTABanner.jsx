@@ -8,7 +8,7 @@ export default function CTABanner() {
         navigate("/dashboard");
     }
     return(
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-4 sm:py-6">
+        <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-4 sm:py-6">
             {/* Marketplace Banner */}
             <div className="mt-8 bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
                 <div className="flex items-center justify-between">

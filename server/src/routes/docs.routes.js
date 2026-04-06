@@ -529,6 +529,98 @@ const openAPISpec = {
         },
       },
     },
+    '/orders/reviews/{reviewId}/report': {
+      post: {
+        tags: ['Reviews'],
+        summary: 'Report a review as abusive (FR-044)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'reviewId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  reason: { type: 'string', maxLength: 500 },
+                },
+                required: ['reason'],
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: 'Review reported successfully' },
+        },
+      },
+    },
+    '/admin/notifications': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Get dashboard alert notifications (FR-049)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'Admin alerts retrieved' },
+        },
+      },
+    },
+    '/admin/review-reports': {
+      get: {
+        tags: ['Admin'],
+        summary: 'List abusive review reports for moderation (FR-044, FR-049)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['pending', 'dismissed', 'actioned', 'all'] },
+          },
+        ],
+        responses: {
+          200: { description: 'Review reports retrieved' },
+        },
+      },
+    },
+    '/admin/review-reports/{reviewId}': {
+      patch: {
+        tags: ['Admin'],
+        summary: 'Resolve abusive review report (FR-044, FR-049)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'reviewId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  action: { type: 'string', enum: ['dismissed', 'actioned'] },
+                  adminNote: { type: 'string', maxLength: 500 },
+                },
+                required: ['action'],
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Review report resolved' },
+        },
+      },
+    },
     '/admin/flagged-users': {
       get: {
         tags: ['Admin'],
@@ -647,6 +739,46 @@ const openAPISpec = {
         security: [{ bearerAuth: [] }],
         responses: {
           200: { description: 'Analytics retrieved' },
+        },
+      },
+    },
+    '/admin/analytics/orders-by-status/export.csv': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Export order status report CSV (FR-052)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'CSV exported' },
+        },
+      },
+    },
+    '/admin/analytics/flagged-users/export.csv': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Export flagged users CSV (FR-052)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'CSV exported' },
+        },
+      },
+    },
+    '/admin/analytics/review-reports/export.csv': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Export abusive review reports CSV (FR-044, FR-052)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'CSV exported' },
+        },
+      },
+    },
+    '/admin/analytics/moderation-activity/export.csv': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Export moderation activity CSV (FR-052)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'CSV exported' },
         },
       },
     },

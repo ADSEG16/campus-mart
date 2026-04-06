@@ -44,7 +44,7 @@ export default function ProtectedRoute({ children }) {
   }, [token]);
 
   if (accessState === "loading") {
-    return <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Checking access...</div>;
+    return <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">Please wait...</div>;
   }
 
   if (accessState === "blocked") {

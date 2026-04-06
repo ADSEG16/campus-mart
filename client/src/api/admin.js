@@ -68,3 +68,21 @@ export const getRecentModerationActivity = async ({ token }) => {
   const response = await apiRequest("/admin/activity", { token });
   return response.data || [];
 };
+
+export const getAdminNotifications = async ({ token }) => {
+  const response = await apiRequest("/admin/notifications", { token });
+  return response.data || [];
+};
+
+export const getReportedReviews = async ({ token, status = "pending" }) => {
+  const response = await apiRequest(`/admin/review-reports?status=${encodeURIComponent(status)}`, { token });
+  return response.data || [];
+};
+
+export const resolveReviewReport = async ({ token, reviewId, action, adminNote = "" }) => {
+  return apiRequest(`/admin/review-reports/${encodeURIComponent(reviewId)}`, {
+    method: "PATCH",
+    token,
+    body: { action, adminNote },
+  });
+};

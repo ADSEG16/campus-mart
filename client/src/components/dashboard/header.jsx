@@ -2,7 +2,7 @@
 
 export default function Header() {
     return(
-    <div className="flex flex-col justify-start max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-4 sm:py-6 bg-white">
+    <div className="flex flex-col justify-start max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-4 sm:py-6 bg-white">
       {/* Header */}
       <div className="mb-2 sm:mb-4 text-center sm:text-left">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Marketplace</h1>

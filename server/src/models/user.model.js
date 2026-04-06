@@ -2,6 +2,13 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const Product = require('./product.model');
 
+const DEFAULT_USER_SETTINGS = Object.freeze({
+	emailNotifications: true,
+	inAppAlerts: true,
+	marketing: false,
+	twoFactor: true,
+});
+
 const sanitizeUserDocument = (userDoc) => {
 	if (!userDoc) return null;
 
@@ -21,6 +28,15 @@ const sanitizeUserDocument = (userDoc) => {
 		studentIdUrl: user.studentIdUrl,
 		profileImageUrl: user.profileImageUrl,
 		bio: user.bio,
+		settings: {
+			...DEFAULT_USER_SETTINGS,
+			...(user.settings || {}),
+		},
+		watchlist: Array.isArray(user.watchlist)
+			? user.watchlist
+				.map((item) => String(item?._id || item || ''))
+				.filter(Boolean)
+			: [],
 		trustScore: user.trustScore,
 		flagged: user.flagged,
 		createdAt: user.createdAt,
@@ -90,6 +106,30 @@ const userSchema = new mongoose.Schema(
 			maxlength: 200,
 			trim: true,
 		},
+		settings: {
+			emailNotifications: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.emailNotifications,
+			},
+			inAppAlerts: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.inAppAlerts,
+			},
+			marketing: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.marketing,
+			},
+			twoFactor: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.twoFactor,
+			},
+		},
+		watchlist: [
+			{
+				type: mongoose.Schema.Types.ObjectId,
+				ref: 'Product',
+			},
+		],
 		trustScore: {
 			type: Number,
 			default: 50,

@@ -51,7 +51,7 @@ const getAllProducts = async (req, res, next) => {
   try {
     const { category, condition, minPrice, maxPrice, sellerId, q } = req.query;
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 100);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 100, 1), 100);
     const skip = (page - 1) * limit;
 
     const filters = {};
@@ -219,7 +219,7 @@ const getProductsBySeller = async (req, res, next) => {
   try {
     const { sellerId } = req.params;
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 100);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 100, 1), 100);
     const skip = (page - 1) * limit;
 
     const filters = { sellerId };

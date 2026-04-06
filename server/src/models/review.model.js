@@ -34,6 +34,47 @@ const reviewSchema = new mongoose.Schema(
       trim: true,
       maxlength: 600,
     },
+    report: {
+      isReported: {
+        type: Boolean,
+        default: false,
+      },
+      reason: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 500,
+      },
+      reportedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      reportedAt: {
+        type: Date,
+        default: null,
+      },
+      status: {
+        type: String,
+        enum: ['pending', 'dismissed', 'actioned'],
+        default: 'pending',
+      },
+      adminNote: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 500,
+      },
+      resolvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      resolvedAt: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   {
     timestamps: true,
@@ -42,5 +83,6 @@ const reviewSchema = new mongoose.Schema(
 
 reviewSchema.index({ orderId: 1, reviewerId: 1 }, { unique: true });
 reviewSchema.index({ revieweeId: 1, createdAt: -1 });
+reviewSchema.index({ 'report.isReported': 1, 'report.status': 1, updatedAt: -1 });
 
 module.exports = mongoose.model('Review', reviewSchema);
