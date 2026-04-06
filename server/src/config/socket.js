@@ -1,5 +1,7 @@
 const jwt = require("jsonwebtoken");
 const Conversation = require("../models/conversation");
+const Message = require("../models/message");
+const { encryptText } = require("../services/encryption.service");
 
 const setupSocket = (io) => {
   io.use((socket, next) => {
@@ -76,6 +78,72 @@ const setupSocket = (io) => {
         message: "Left conversation",
         conversationId,
       });
+    });
+
+    // ✅ STEP 5: Send message
+    socket.on("message:send", async ({ conversationId, text }, callback) => {
+      try {
+        if (!conversationId || !text) {
+          return callback?.({
+            ok: false,
+            message: "conversationId and text are required",
+          });
+        }
+
+        const conversation = await Conversation.findById(conversationId);
+
+        if (!conversation) {
+          return callback?.({ ok: false, message: "Conversation not found" });
+        }
+
+        const isParticipant = conversation.participants.some(
+          (id) => id.toString() === socket.user.id,
+        );
+
+        if (!isParticipant) {
+          return callback?.({ ok: false, message: "Not authorized" });
+        }
+
+        const receiverId = conversation.participants.find(
+          (id) => id.toString() !== socket.user.id,
+        );
+
+        if (!receiverId) {
+          return callback?.({ ok: false, message: "Receiver not found" });
+        }
+
+        const encrypted = encryptText(text);
+
+        const message = await Message.create({
+          conversationId,
+          senderId: socket.user.id,
+          receiverId,
+          ...encrypted,
+          status: "sent",
+        });
+
+        conversation.lastMessage = message._id;
+        await conversation.save();
+
+        io.to(conversationId).emit("message:new", {
+          messageId: message._id,
+          conversationId,
+          senderId: socket.user.id,
+          receiverId,
+          createdAt: message.createdAt,
+          status: message.status,
+        });
+
+        return callback?.({
+          ok: true,
+          message: "Message sent",
+          messageId: message._id,
+          status: message.status,
+        });
+      } catch (err) {
+        console.error("message:send error:", err);
+        return callback?.({ ok: false, message: "Server error" });
+      }
     });
 
     socket.on("disconnect", () => {

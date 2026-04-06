@@ -19,6 +19,18 @@ socket.on("connect", () => {
   );
 });
 
+socket.emit(
+  "message:send",
+  { conversationId: "69d10ca489864b5aa51cef1a", text: "Hello test message" },
+  (res) => {
+    console.log("Send response:", res);
+  },
+);
+
+socket.on("message:new", (data) => {
+  console.log("message:new event:", data);
+});
+
 socket.on("connect_error", (err) => {
   console.log("Connection error:", err.message);
 });
