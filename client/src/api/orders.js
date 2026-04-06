@@ -16,6 +16,15 @@ const formatTime = (value) => {
   return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 };
 
+const normalizeOrderStatus = (status) => {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "meetup_scheduled") return "Meetup Scheduled";
+  if (normalized === "pending") return "Pending";
+  if (normalized === "delivered") return "Delivered";
+  if (normalized === "cancelled") return "Cancelled";
+  return status || "Pending";
+};
+
 export const mapOrderToSummary = (order, currentUserId) => {
   const isSale = String(order?.sellerId?._id || order?.sellerId) === String(currentUserId || "");
   const counterparty = isSale ? order?.buyerId : order?.sellerId;
@@ -27,7 +36,7 @@ export const mapOrderToSummary = (order, currentUserId) => {
     date: formatDate(order?.createdAt),
     seller: counterparty?.fullName || counterparty?.email || "Campus User",
     verified: Boolean(counterparty?.emailVerified),
-    status: order?.status || "Pending",
+    status: normalizeOrderStatus(order?.status),
     amount: formatMoney(order?.totalAmount),
     cancelled: String(order?.status || "").toLowerCase() === "cancelled",
     type: isSale ? "sale" : "purchase",
@@ -45,7 +54,9 @@ const buildProgressFromOrder = (order) => {
     },
   ];
 
-  if (order?.meetupScheduledFor || order?.status === "Meetup Scheduled" || order?.status === "Delivered") {
+  const normalizedStatus = String(order?.status || "").toLowerCase();
+
+  if (order?.meetupScheduledFor || normalizedStatus === "meetup_scheduled" || normalizedStatus === "delivered") {
     progress.push({
       step: "Meeting Scheduled",
       date: formatDate(order?.meetupScheduledFor),
@@ -55,7 +66,7 @@ const buildProgressFromOrder = (order) => {
     });
   }
 
-  if (order?.status === "Delivered") {
+  if (normalizedStatus === "delivered") {
     progress.push({
       step: "Completed",
       date: formatDate(order?.updatedAt),
@@ -64,7 +75,7 @@ const buildProgressFromOrder = (order) => {
     });
   }
 
-  if (order?.status === "Cancelled") {
+  if (normalizedStatus === "cancelled") {
     progress.push({
       step: "Cancelled",
       date: formatDate(order?.updatedAt),
@@ -91,7 +102,7 @@ export const mapOrderToDetails = (order, currentUserId) => {
     seller: counterparty?.fullName || counterparty?.email || "Campus User",
     sellerVerified: Boolean(counterparty?.emailVerified),
     price: formatMoney(order?.totalAmount),
-    status: order?.status || "Pending",
+    status: normalizeOrderStatus(order?.status),
     cancelled: String(order?.status || "").toLowerCase() === "cancelled",
     image: firstItem?.images?.[0]?.url || null,
     progress: buildProgressFromOrder(order),
@@ -106,8 +117,28 @@ export const listOrders = async ({ token, role } = {}) => {
   return response.data || [];
 };
 
+export const createOrder = async ({ token, items }) => {
+  const response = await apiRequest("/orders", {
+    method: "POST",
+    token,
+    body: { items },
+  });
+
+  return response.data;
+};
+
 export const getOrderById = async ({ token, orderId }) => {
   const response = await apiRequest(`/orders/${encodeURIComponent(orderId)}`, { token });
+  return response.data;
+};
+
+export const updateOrderStatus = async ({ token, orderId, payload }) => {
+  const response = await apiRequest(`/orders/${encodeURIComponent(orderId)}/status`, {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+
   return response.data;
 };
 

@@ -59,6 +59,7 @@ export default function Messages() {
 
                     conversationMap.set(counterpartId, {
                         id: counterpartId,
+                        orderId: order?._id,
                         name,
                         avatar: initials,
                         lastMessage: `Order ${String(order?.status || "Pending").toLowerCase()} update`,
@@ -175,6 +176,7 @@ export default function Messages() {
                             <div className="flex items-center gap-2">
                                 <button 
                                     onClick={() => setShowMeetingModal(true)}
+                                    disabled={!activeChat?.orderId}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
                                 >
                                     <MapPin className="w-4 h-4 mr-2" />
@@ -314,7 +316,17 @@ export default function Messages() {
                 </div>
             </div>
 
-            {showMeetingModal && <MeetingPointModal onClose={() => setShowMeetingModal(false)} />}
+            {showMeetingModal && (
+                <MeetingPointModal
+                    orderId={activeChat?.orderId}
+                    counterpartName={activeChat?.name}
+                    onClose={() => setShowMeetingModal(false)}
+                    onScheduled={() => {
+                        setShowMeetingModal(false);
+                        window.location.reload();
+                    }}
+                />
+            )}
         </div>
     );
 }

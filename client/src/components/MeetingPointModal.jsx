@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { X, MapPin, Building, Calendar, Clock, Shield, Plus, Minus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getStoredAuthToken } from "../api/http";
+import { updateOrderStatus } from "../api/orders";
 
-export default function MeetingPointModal({ onClose }) {
+export default function MeetingPointModal({ onClose, orderId, counterpartName, onScheduled }) {
     const [selectedZone, setSelectedZone] = useState("library");
-    const [date, setDate] = useState("Nov 24, 2024");
-    const [time, setTime] = useState("04:30 PM");
+    const [date, setDate] = useState("");
+    const [time, setTime] = useState("");
     const [notes, setNotes] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
 
     const safeZones = [
         {
@@ -22,6 +26,63 @@ export default function MeetingPointModal({ onClose }) {
             features: []
         }
     ];
+
+    const selectedZoneData = safeZones.find((zone) => zone.id === selectedZone);
+
+    const handleConfirm = async () => {
+        if (!orderId) {
+            setErrorMessage("No order selected for scheduling.");
+            return;
+        }
+
+        if (!date || !time) {
+            setErrorMessage("Please select a valid date and time.");
+            return;
+        }
+
+        const token = getStoredAuthToken();
+        if (!token) {
+            setErrorMessage("Please login again.");
+            return;
+        }
+
+        const scheduledFor = new Date(`${date}T${time}`);
+        if (Number.isNaN(scheduledFor.getTime())) {
+            setErrorMessage("Invalid meeting date/time.");
+            return;
+        }
+
+        const baseLocation = selectedZoneData
+            ? `${selectedZoneData.name} - ${selectedZoneData.address}`
+            : "Custom campus location";
+        const meetupLocation = notes.trim() ? `${baseLocation}. ${notes.trim()}` : baseLocation;
+
+        try {
+            setIsSaving(true);
+            setErrorMessage("");
+
+            await updateOrderStatus({
+                token,
+                orderId,
+                payload: {
+                    nextStatus: "meetup_scheduled",
+                    meetupType: selectedZone === "library" || selectedZone === "union" ? "verified" : "custom",
+                    meetupLocation,
+                    meetupScheduledFor: scheduledFor.toISOString(),
+                },
+            });
+
+            if (onScheduled) {
+                onScheduled();
+            } else {
+                onClose();
+            }
+        } catch (error) {
+            setErrorMessage(error.message || "Failed to schedule meeting");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -108,8 +169,14 @@ export default function MeetingPointModal({ onClose }) {
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">Set Meeting Point</h2>
                         <p className="text-gray-600 mb-6">
-                            Coordinate a safe spot for your COD transaction with <span className="font-semibold">Alex Johnson</span>
+                            Coordinate a safe spot for your COD transaction with <span className="font-semibold">{counterpartName || "Campus User"}</span>
                         </p>
+
+                        {errorMessage && (
+                            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                {errorMessage}
+                            </div>
+                        )}
 
                         {/* Safe Zones */}
                         <div className="mb-6">
@@ -172,7 +239,7 @@ export default function MeetingPointModal({ onClose }) {
                                     <div className="relative">
                                         <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                         <input
-                                            type="text"
+                                            type="date"
                                             value={date}
                                             onChange={(e) => setDate(e.target.value)}
                                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -184,7 +251,7 @@ export default function MeetingPointModal({ onClose }) {
                                     <div className="relative">
                                         <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                         <input
-                                            type="text"
+                                            type="time"
                                             value={time}
                                             onChange={(e) => setTime(e.target.value)}
                                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -219,7 +286,11 @@ export default function MeetingPointModal({ onClose }) {
                         </div>
 
                         {/* Action Buttons */}
-                        <button className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors mb-3 flex items-center justify-center">
+                        <button
+                            onClick={handleConfirm}
+                            disabled={isSaving}
+                            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors mb-3 flex items-center justify-center"
+                        >
                             Confirm Meeting Point
                             <span className="ml-2">→</span>
                         </button>

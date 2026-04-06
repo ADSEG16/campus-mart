@@ -41,10 +41,10 @@ const EditItem = () => {
   const categories = [
     "Textbooks",
     "Electronics",
-    "Dorm Life",
-    "Tickets",
     "Clothing",
     "Furniture",
+    "Stationery",
+    "Services",
     "Other"
   ];
 
@@ -144,7 +144,7 @@ const EditItem = () => {
           title: formData.title,
           description: formData.description,
           category: formData.category,
-          condition: formData.condition === "Used" ? "Good" : "New",
+          condition: formData.condition,
           price: Number(formData.price),
           meetingSpot: formData.meetingSpot || "verified",
         },

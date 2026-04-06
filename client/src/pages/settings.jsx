@@ -1,19 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { User, Lock, Bell, Shield, ChevronRight } from "lucide-react";
 import Navbar from "../components/navbar";
 import ProfileSidebar from "../components/ProfileSidebar";
-import { updateCurrentUserProfile } from "../api/auth";
+import { getCurrentUser, updateCurrentUserProfile } from "../api/auth";
 import { getStoredAuthToken } from "../api/http";
+import { useToast } from "../context";
 
 export default function Settings() {
-    const [emailNotifications, setEmailNotifications] = useState(true);
-    const [inAppAlerts, setInAppAlerts] = useState(true);
-    const [marketing, setMarketing] = useState(false);
-    const [twoFactor, setTwoFactor] = useState(true);
+    const hasDigit = (value) => /\d/.test(String(value || ""));
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingBio, setIsSavingBio] = useState(false);
+    const [isEditingBio, setIsEditingBio] = useState(false);
     const [saveMessage, setSaveMessage] = useState("");
 
-    const currentUser = useMemo(() => {
+    const initialUser = useMemo(() => {
         try {
             return JSON.parse(localStorage.getItem("currentUser") || "{}");
         } catch {
@@ -21,12 +21,41 @@ export default function Settings() {
         }
     }, []);
 
+    const [currentUser, setCurrentUser] = useState(initialUser);
+
+    useEffect(() => {
+        const refreshCurrentUser = async () => {
+            const token = getStoredAuthToken();
+            if (!token) return;
+
+            try {
+                const response = await getCurrentUser({ token });
+                const freshUser = response?.data;
+                if (freshUser && typeof freshUser === "object") {
+                    setCurrentUser(freshUser);
+                    localStorage.setItem("currentUser", JSON.stringify(freshUser));
+                }
+            } catch {
+                // Keep local values if fetch fails.
+            }
+        };
+
+        refreshCurrentUser();
+    }, []);
+
     const fullName = currentUser?.fullName || "Campus User";
     const [editableName, setEditableName] = useState(fullName);
+    const [editableDepartment, setEditableDepartment] = useState(currentUser?.department || "");
+    const [editableGraduationYear, setEditableGraduationYear] = useState(currentUser?.graduationYear || "");
+    const [editableBio, setEditableBio] = useState(currentUser?.bio || "");
     const email = currentUser?.email || "Not provided";
     const department = currentUser?.department || "Not provided";
     const graduationYear = currentUser?.graduationYear || "Not provided";
-    const isVerified = Boolean(currentUser?.emailVerified);
+    const isVerified = Boolean(
+        currentUser?.isVerified ||
+        currentUser?.emailVerified ||
+        String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
+    );
     const initials = fullName
         .split(" ")
         .slice(0, 2)
@@ -34,10 +63,73 @@ export default function Settings() {
         .join("")
         .toUpperCase() || "CU";
 
+    const preferencesKey = `settings:preferences:${currentUser?._id || "guest"}`;
+    const savedPrefs = (() => {
+        try {
+            return JSON.parse(localStorage.getItem(preferencesKey) || "{}");
+        } catch {
+            return {};
+        }
+    })();
+
+    const [emailNotifications, setEmailNotifications] = useState(savedPrefs.emailNotifications ?? true);
+    const [inAppAlerts, setInAppAlerts] = useState(savedPrefs.inAppAlerts ?? true);
+    const [marketing, setMarketing] = useState(savedPrefs.marketing ?? false);
+    const [twoFactor, setTwoFactor] = useState(savedPrefs.twoFactor ?? true);
+    const { showToast } = useToast();
+
+    useEffect(() => {
+        localStorage.setItem(
+            preferencesKey,
+            JSON.stringify({ emailNotifications, inAppAlerts, marketing, twoFactor })
+        );
+    }, [preferencesKey, emailNotifications, inAppAlerts, marketing, twoFactor]);
+
+    useEffect(() => {
+        setEditableName(currentUser?.fullName || "Campus User");
+        setEditableDepartment(currentUser?.department || "");
+        setEditableGraduationYear(currentUser?.graduationYear || "");
+        setEditableBio(currentUser?.bio || "");
+    }, [currentUser]);
+
+    const handleSaveBio = async () => {
+        const token = getStoredAuthToken();
+        if (!token) {
+            showToast("Please log in again.", "error");
+            return;
+        }
+
+        try {
+            setIsSavingBio(true);
+            const response = await updateCurrentUserProfile({
+                token,
+                payload: { bio: editableBio.trim() },
+            });
+
+            const updatedUser = response?.data || {};
+            setCurrentUser(updatedUser);
+            localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+            setIsEditingBio(false);
+            showToast("Bio updated successfully.", "success");
+        } catch (error) {
+            showToast(error.message || "Failed to update bio.", "error");
+        } finally {
+            setIsSavingBio(false);
+        }
+    };
+
     const handleSaveProfile = async () => {
         const nextName = editableName.trim();
+        const nextDepartment = editableDepartment.trim();
         if (!nextName) {
             setSaveMessage("Name cannot be empty.");
+            showToast("Name cannot be empty.", "error");
+            return;
+        }
+
+        if (hasDigit(nextName) || hasDigit(nextDepartment)) {
+            setSaveMessage("Name and department must contain text only (no numbers).");
+            showToast("Name and department must contain text only (no numbers).", "error");
             return;
         }
 
@@ -47,20 +139,30 @@ export default function Settings() {
             const token = getStoredAuthToken();
             if (!token) {
                 setSaveMessage("Please log in again to update your name.");
+                showToast("Please log in again.", "error");
                 return;
             }
 
+            showToast("Saving settings...", "info", 1200);
+
             const response = await updateCurrentUserProfile({
                 token,
-                payload: { fullName: nextName },
+                payload: {
+                    fullName: nextName,
+                    department: nextDepartment,
+                    graduationYear: editableGraduationYear,
+                },
             });
 
             const updatedUser = response?.data || {};
             localStorage.setItem("currentUser", JSON.stringify(updatedUser));
-            setSaveMessage("Name updated successfully.");
+
+            setSaveMessage("Settings saved successfully.");
+            showToast("Settings saved successfully.", "success");
             window.location.reload();
         } catch (error) {
             setSaveMessage(error.message || "Failed to update name.");
+            showToast(error.message || "Failed to save settings.", "error");
         } finally {
             setIsSaving(false);
         }
@@ -129,6 +231,8 @@ export default function Settings() {
                                         type="text"
                                         value={editableName}
                                         onChange={(event) => setEditableName(event.target.value)}
+                                        pattern="^[^0-9]+$"
+                                        title="Use text only. Numbers are not allowed."
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     />
                                 </div>
@@ -154,8 +258,10 @@ export default function Settings() {
                                     </label>
                                     <input
                                         type="text"
-                                        defaultValue={department}
-                                        disabled
+                                        value={editableDepartment}
+                                        onChange={(event) => setEditableDepartment(event.target.value)}
+                                        pattern="^[^0-9]+$"
+                                        title="Use text only. Numbers are not allowed."
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">Department / major from your profile</p>
@@ -165,10 +271,60 @@ export default function Settings() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Graduation Year</label>
                                     <input
                                         type="text"
-                                        defaultValue={graduationYear}
-                                        disabled
+                                        value={editableGraduationYear}
+                                        onChange={(event) => setEditableGraduationYear(event.target.value)}
                                         className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                                     />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <label className="block text-sm font-medium text-gray-700">Bio</label>
+                                        {!isEditingBio ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsEditingBio(true)}
+                                                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                                            >
+                                                {currentUser?.bio?.trim() ? "Edit Bio" : "Add Bio"}
+                                            </button>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditableBio(currentUser?.bio || "");
+                                                        setIsEditingBio(false);
+                                                    }}
+                                                    className="text-sm font-medium text-gray-600 hover:text-gray-700"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSaveBio}
+                                                    disabled={isSavingBio}
+                                                    className="rounded-md bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                                                >
+                                                    {isSavingBio ? "Saving..." : "Save Bio"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {isEditingBio ? (
+                                        <textarea
+                                            value={editableBio}
+                                            onChange={(event) => setEditableBio(event.target.value)}
+                                            rows={3}
+                                            maxLength={200}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    ) : (
+                                        <p className="min-h-18 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700">
+                                            {currentUser?.bio?.trim() || "Add bio"}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -313,7 +469,7 @@ export default function Settings() {
                                 disabled={isSaving}
                                 className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
                             >
-                                {isSaving ? "Saving..." : "Save Name"}
+                                {isSaving ? "Saving..." : "Save Settings"}
                             </button>
                         </div>
                         {saveMessage && (

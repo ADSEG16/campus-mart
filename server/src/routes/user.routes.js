@@ -6,6 +6,7 @@ const { uploadSingleProfileImage } = require('../services/product.service');
 const { sendSuccess, sendError } = require('../utils/response');
 
 const router = express.Router();
+const hasDigit = (value) => /\d/.test(String(value || ''));
 
 const uploadAvatar = async (req, res, next) => {
     try {
@@ -151,6 +152,16 @@ const updateCurrentUserProfile = async (req, res, next) => {
                     unauthorizedFields,
                     allowedFields,
                 },
+            });
+        }
+
+        if (
+            (req.body.fullName !== undefined && hasDigit(req.body.fullName)) ||
+            (req.body.department !== undefined && hasDigit(req.body.department))
+        ) {
+            return sendError(res, {
+                statusCode: 400,
+                message: 'fullName and department must contain text only (no numbers)',
             });
         }
 

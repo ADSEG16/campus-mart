@@ -177,7 +177,7 @@ describe('Order monitoring and admin flagged users endpoints', () => {
     const result = await realApplyCancellationTrustScore('buyer-1');
 
     expect(save).toHaveBeenCalledTimes(1);
-    expect(result.actor.trustScore).toBe(TRUST_SCORE_RULES.LOW_TRUST_FLAG_THRESHOLD - 1);
+    expect(result.actor.trustScore).toBe(TRUST_SCORE_RULES.LOW_TRUST_FLAG_THRESHOLD + 1 - TRUST_SCORE_RULES.CANCELLATION_PENALTY);
     expect(result.actor.flagged).toBe(true);
   });
 

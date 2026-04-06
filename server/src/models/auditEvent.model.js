@@ -5,6 +5,9 @@ const AUDIT_EVENT_TYPES = Object.freeze([
   'order.delivery_confirmation_recorded',
   'moderation.verification_approved',
   'moderation.verification_rejected',
+  'admin.complaint_penalty_applied',
+  'admin.account_suspended',
+  'admin.listing_removed',
 ]);
 
 const auditEventSchema = new mongoose.Schema(

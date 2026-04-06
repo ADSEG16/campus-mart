@@ -19,6 +19,7 @@ const toConditionColor = (condition) => {
 const toListingStatus = (availabilityStatus) => {
   const normalized = String(availabilityStatus || "").toLowerCase();
   if (normalized === "available") return "active";
+  if (normalized === "unavailable") return "inactive";
   if (normalized === "sold") return "sold";
   return "inactive";
 };
@@ -26,6 +27,13 @@ const toListingStatus = (availabilityStatus) => {
 export const mapProductToListing = (product) => {
   const seller = product?.sellerId || {};
   const sellerName = seller?.fullName || seller?.email || "Campus Seller";
+
+  const normalizedAvailability = String(product?.availabilityStatus || "");
+  const actions = normalizedAvailability === "Available"
+    ? ["edit", "deactivate", "mark-sold", "delete"]
+    : normalizedAvailability === "Sold"
+      ? ["relist", "delete"]
+      : ["relist", "edit", "delete"];
 
   return {
     id: product._id,
@@ -55,7 +63,7 @@ export const mapProductToListing = (product) => {
     views: product.views || 0,
     inquiries: 0,
     postedDate: product.createdAt || "",
-    actions: ["edit", "deactivate"],
+    actions,
     soldTo: null,
     soldDate: null,
     meetingTime: null,
@@ -168,6 +176,13 @@ export const updateProduct = async ({ token, productId, payload, imageFiles }) =
     method: "PATCH",
     token,
     body: formData,
+  });
+};
+
+export const deleteProduct = async ({ token, productId }) => {
+  return apiRequest(`/products/${encodeURIComponent(productId)}`, {
+    method: "DELETE",
+    token,
   });
 };
 

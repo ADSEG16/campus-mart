@@ -15,11 +15,17 @@ import MyListingsHeader from "./header";
 import { useListings } from "../../context";
 import { useNavigate } from "react-router-dom";
 import HistoryList from "../transactions/history";
+import { getStoredAuthToken } from "../../api/http";
+import { deleteProduct, updateProduct } from "../../api/products";
+import { useToast } from "../../context";
 
 const MyListingsContent = () => {
   const [activeTab, setActiveTab] = useState("all");
-  const { listings, updateListingStatus, } = useListings(); //deleteListing 
+  const { listings, refreshListings } = useListings();
+  const [hiddenListingIds, setHiddenListingIds] = useState([]);
+  const [statusOverrides, setStatusOverrides] = useState({});
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
 
   const sellerListings = useMemo(() => {
@@ -30,18 +36,27 @@ const MyListingsContent = () => {
     return listings.filter((listing) => String(listing?.user?.id || "") === String(currentUser._id));
   }, [listings, currentUser?._id]);
 
+  const sellerListingsWithOverrides = useMemo(() => {
+    return sellerListings
+      .filter((listing) => !hiddenListingIds.includes(String(listing.id)))
+      .map((listing) => {
+        const override = statusOverrides[String(listing.id)] || {};
+        return { ...listing, ...override };
+      });
+  }, [sellerListings, hiddenListingIds, statusOverrides]);
+
   const tabs = [
-    { id: "all", label: "All Listings", count: sellerListings.length },
-    { id: "active", label: "Active", count: sellerListings.filter(l => l.status === "active").length },
-    { id: "sold", label: "Sold", count: sellerListings.filter(l => l.status === "sold").length },
-    { id: "pending", label: "Pending", count: sellerListings.filter(l => l.status === "pending").length },
+    { id: "all", label: "All Listings", count: sellerListingsWithOverrides.length },
+    { id: "active", label: "Active", count: sellerListingsWithOverrides.filter(l => l.status === "active").length },
+    { id: "sold", label: "Sold", count: sellerListingsWithOverrides.filter(l => l.status === "sold").length },
+    { id: "pending", label: "Pending", count: sellerListingsWithOverrides.filter(l => l.status === "pending").length },
     { id: "transactions", label: "Transaction History" }
   ];
 
   const isTransactionTab = activeTab === "transactions";
 
   // Filter listings based on active tab
-  const filteredListings = sellerListings.filter(listing => {
+  const filteredListings = sellerListingsWithOverrides.filter(listing => {
     if (activeTab === "all") return true;
     return listing.status === activeTab;
   });
@@ -71,28 +86,75 @@ const MyListingsContent = () => {
     }
   };
 
-  const handleAction = (action, listing) => {
-    switch(action) {
-    case "edit":
-      navigate(`/edit-item/${listing.id}`); // Navigate to edit page
-      break;
+  const handleAction = async (action, listing) => {
+    const syncListing = async (payload) => {
+      const token = getStoredAuthToken();
+      await updateProduct({ token, productId: listing.id, payload, imageFiles: [] });
+      await refreshListings();
+    };
+
+    const runDelete = async () => {
+      const token = getStoredAuthToken();
+      await deleteProduct({ token, productId: listing.id });
+      await refreshListings();
+    };
+
+    const listingId = String(listing.id);
+
+    switch (action) {
+      case "edit":
+        navigate(`/edit-item/${listing.id}`);
+        break;
       case "deactivate":
-        updateListingStatus(listing.id, "inactive");
+        setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "inactive" } }));
+        showToast("Listing deactivated (syncing)...", "info");
+        try {
+          await syncListing({ availabilityStatus: "Unavailable" });
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "inactive" } }));
+          showToast("Listing deactivated.", "success");
+        } catch (error) {
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: listing.status } }));
+          showToast(error.message || "Failed to deactivate listing.", "error");
+        }
         break;
       case "receipt":
-        console.log("View receipt:", listing.id);
+        showToast("Open receipt from transaction history.", "info");
         break;
       case "relist":
-        updateListingStatus(listing.id, "active");
+        setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "active" } }));
+        showToast("Relisting item (syncing)...", "info");
+        try {
+          await syncListing({ availabilityStatus: "Available" });
+          showToast("Listing relisted.", "success");
+        } catch (error) {
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: listing.status } }));
+          showToast(error.message || "Failed to relist listing.", "error");
+        }
         break;
       case "chat":
-        console.log("Open chat:", listing.id);
+        navigate("/messages");
         break;
       case "mark-sold":
-        updateListingStatus(listing.id, "sold", {
-          soldTo: "Buyer",
-          soldDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        });
+        setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "sold" } }));
+        showToast("Marking item as sold (syncing)...", "info");
+        try {
+          await syncListing({ availabilityStatus: "Sold", stock: 0 });
+          showToast("Listing marked as sold.", "success");
+        } catch (error) {
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: listing.status } }));
+          showToast(error.message || "Failed to mark as sold.", "error");
+        }
+        break;
+      case "delete":
+        setHiddenListingIds((prev) => [...prev, listingId]);
+        showToast("Deleting listing...", "info");
+        try {
+          await runDelete();
+          showToast("Listing deleted.", "success");
+        } catch (error) {
+          setHiddenListingIds((prev) => prev.filter((id) => id !== listingId));
+          showToast(error.message || "Failed to delete listing.", "error");
+        }
         break;
       default:
         break;
@@ -104,6 +166,7 @@ const MyListingsContent = () => {
       const actionLabels = {
         edit: "Edit",
         deactivate: "Deactivate",
+        delete: "Delete",
         receipt: "View Receipt",
         relist: "Relist",
         chat: "Chat",
@@ -113,6 +176,7 @@ const MyListingsContent = () => {
       const actionColors = {
         edit: "text-blue-600 hover:text-blue-700",
         deactivate: "text-gray-600 hover:text-gray-900",
+        delete: "text-red-600 hover:text-red-700",
         receipt: "text-blue-600 hover:text-blue-700",
         relist: "text-gray-600 hover:text-gray-900",
         chat: "text-blue-600 hover:text-blue-700",

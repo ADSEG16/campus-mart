@@ -6,6 +6,7 @@ import BrandLogo from '../BrandLogo';
 
 export default function SignUpForm() {
   const navigate = useNavigate();
+        const hasDigit = (value) => /\d/.test(String(value || ''));
     const [formData, setFormData] = useState({
         fullName: '',
         department: '',
@@ -30,6 +31,11 @@ export default function SignUpForm() {
 
         if (formData.password !== formData.confirmPassword) {
             setErrorMessage("Passwords don't match.");
+            return;
+        }
+
+        if (hasDigit(formData.fullName) || hasDigit(formData.department)) {
+            setErrorMessage('Name and department must contain text only (no numbers).');
             return;
         }
 
@@ -99,6 +105,8 @@ export default function SignUpForm() {
                                     placeholder="Enter your full name"
                                     value={formData.fullName}
                                     onChange={handleChange}
+                                    pattern="^[^0-9]+$"
+                                    title="Use text only. Numbers are not allowed."
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
@@ -116,6 +124,8 @@ export default function SignUpForm() {
                                     placeholder="Enter your department or major"
                                     value={formData.department}
                                     onChange={handleChange}
+                                    pattern="^[^0-9]+$"
+                                    title="Use text only. Numbers are not allowed."
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
