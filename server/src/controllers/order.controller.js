@@ -35,6 +35,8 @@ const getAllowedNextStatuses = currentStatus => ORDER_ALLOWED_TRANSITIONS[curren
 
 const canTransition = (currentStatus, nextStatus) => getAllowedNextStatuses(currentStatus).includes(nextStatus);
 
+const SELLER_RESPONSE_WINDOW_HOURS = 48;
+
 const createOrderReview = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -536,6 +538,27 @@ const updateOrderStatus = async (req, res, next) => {
         message: `Invalid status transition: ${currentStatus} -> ${normalizedNextStatus}`,
         extras: { allowedTransitions: getAllowedNextStatuses(currentStatus) },
       });
+    }
+
+    if (
+      currentStatus === ORDER_STATUS.PENDING &&
+      isSeller &&
+      !isAdmin &&
+      [ORDER_STATUS.MEETUP_SCHEDULED, ORDER_STATUS.CANCELLED].includes(normalizedNextStatus)
+    ) {
+      const createdAt = new Date(order.createdAt);
+      const deadline = new Date(createdAt.getTime() + SELLER_RESPONSE_WINDOW_HOURS * 60 * 60 * 1000);
+
+      if (Date.now() > deadline.getTime()) {
+        return sendError(res, {
+          statusCode: 422,
+          message: 'Seller acceptance or rejection window has expired for this pending order',
+          extras: {
+            deadline,
+            maxResponseHours: SELLER_RESPONSE_WINDOW_HOURS,
+          },
+        });
+      }
     }
 
     if (normalizedNextStatus === ORDER_STATUS.MEETUP_SCHEDULED) {

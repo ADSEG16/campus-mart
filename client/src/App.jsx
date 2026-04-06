@@ -13,6 +13,7 @@ import Settings from "./pages/settings";
 import Messages from "./pages/messages";
 import AdminPage from "./pages/admin";
 import ProductDetail from "./pages/product-detail";
+import PublicProfile from "./pages/public-profile";
 import TransactionHistory from "./pages/TransactionHistory";
 import TransactionDetails from "./pages/TransactionDetails";
 import ReceiptPage from "./pages/receipt";
@@ -33,6 +34,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/marketplace" replace />} />
               <Route path="/marketplace" element={<Dashboard />} />
+              <Route path="/profile/:userId" element={<PublicProfile />} />
               <Route path="/safety" element={<Safety />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />

@@ -242,7 +242,7 @@ const openAPISpec = {
     '/products': {
       get: {
         tags: ['Products'],
-        summary: 'Browse and search listings (FR-019, FR-020, FR-021)',
+        summary: 'Browse, search, filter, and sort listings (FR-019, FR-020, FR-021, FR-022)',
         parameters: [
           {
             name: 'q',
@@ -275,6 +275,28 @@ const openAPISpec = {
             description: 'Maximum price (FR-021)',
           },
           {
+            name: 'minTrustScore',
+            in: 'query',
+            schema: { type: 'number', minimum: 0, maximum: 100 },
+            description: 'Minimum seller trust score (FR-021)',
+          },
+          {
+            name: 'maxTrustScore',
+            in: 'query',
+            schema: { type: 'number', minimum: 0, maximum: 100 },
+            description: 'Maximum seller trust score (FR-021)',
+          },
+          {
+            name: 'sortBy',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['recent', 'price_asc', 'price_desc', 'trust_desc'],
+              default: 'recent',
+            },
+            description: 'Sort listings by recency, price, or seller trust score (FR-022)',
+          },
+          {
             name: 'page',
             in: 'query',
             schema: { type: 'number', default: 1 },
@@ -282,7 +304,7 @@ const openAPISpec = {
           {
             name: 'limit',
             in: 'query',
-            schema: { type: 'number', default: 10, maximum: 100 },
+            schema: { type: 'number', default: 100, maximum: 100 },
           },
         ],
         responses: {
@@ -344,6 +366,50 @@ const openAPISpec = {
             },
           },
           401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/users/public/{userId}': {
+      get: {
+        tags: ['Users'],
+        summary: 'Get public user profile (FR-043)',
+        parameters: [
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Public user profile fetched successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'object',
+                      properties: {
+                        _id: { type: 'string', format: 'uuid' },
+                        fullName: { type: 'string' },
+                        department: { type: 'string' },
+                        graduationYear: { type: 'number' },
+                        bio: { type: 'string' },
+                        trustScore: { type: 'number', minimum: 0, maximum: 100 },
+                        isVerified: { type: 'boolean' },
+                        verificationStatus: { type: 'string' },
+                        profileImageUrl: { type: 'string', nullable: true },
+                        createdAt: { type: 'string', format: 'date-time' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: 'User not found' },
         },
       },
     },
@@ -421,7 +487,7 @@ const openAPISpec = {
     '/orders/{orderId}/status': {
       patch: {
         tags: ['Orders'],
-        summary: 'Update order status (FR-030, FR-033)',
+        summary: 'Update order status (FR-028, FR-030, FR-033)',
         security: [{ bearerAuth: [] }],
         parameters: [
           {
@@ -460,6 +526,9 @@ const openAPISpec = {
                 schema: { $ref: '#/components/schemas/Order' },
               },
             },
+          },
+          422: {
+            description: 'Seller acceptance/rejection window expired for pending order (>48h)',
           },
         },
       },
@@ -786,7 +855,40 @@ const openAPISpec = {
 };
 
 router.get('/', (req, res) => {
-  res.json(openAPISpec);
+  const serializedSpec = JSON.stringify(openAPISpec).replace(/</g, '\\u003c');
+
+  res.type('html').send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CampusMart API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin: 0; background: #f8fafc; }
+    .topbar { display: none; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    const spec = ${serializedSpec};
+    window.ui = SwaggerUIBundle({
+      spec,
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      displayRequestDuration: true,
+      docExpansion: 'list',
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIStandalonePreset,
+      ],
+    });
+  </script>
+</body>
+</html>`);
 });
 
 module.exports = router;

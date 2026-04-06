@@ -129,6 +129,41 @@ const getCurrentUserProfile = async (req, res, next) => {
     }
 };
 
+const getPublicUserProfile = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(String(userId || ''))) {
+            return sendError(res, { statusCode: 400, message: 'Invalid userId' });
+        }
+
+        const user = await User.findById(userId)
+            .select('_id fullName department graduationYear bio trustScore isVerified verificationStatus profileImageUrl createdAt');
+
+        if (!user) {
+            return sendError(res, { statusCode: 404, message: 'User not found' });
+        }
+
+        return sendSuccess(res, {
+            message: 'Public user profile fetched successfully',
+            data: {
+                _id: user._id,
+                fullName: user.fullName,
+                department: user.department,
+                graduationYear: user.graduationYear,
+                bio: user.bio,
+                trustScore: user.trustScore,
+                isVerified: user.isVerified,
+                verificationStatus: user.verificationStatus,
+                profileImageUrl: user.profileImageUrl,
+                createdAt: user.createdAt,
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
 const updateCurrentUserProfile = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id);
@@ -476,6 +511,7 @@ const getCurrentUserTrustAnalytics = async (req, res, next) => {
 router.post('/avatar', requireUser, profileImageUpload.single('profileImage'), uploadAvatar);
 router.patch('/avatar', requireUser, profileImageUpload.single('profileImage'), replaceAvatar);
 router.delete('/avatar', requireUser, deleteAvatar);
+router.get('/public/:userId', getPublicUserProfile);
 router.get('/profile', requireUser, getCurrentUserProfile);
 router.get('/me', requireUser, getCurrentUserProfile);
 router.patch('/profile', requireUser, updateCurrentUserProfile);

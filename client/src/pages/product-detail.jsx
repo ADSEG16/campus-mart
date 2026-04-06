@@ -226,7 +226,12 @@ export default function ProductDetail() {
                                         </div>
                                         <div className="space-y-1">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <span className="font-semibold text-gray-900">{product.seller.name}</span>
+                                                <Link
+                                                    to={`/profile/${product.seller.id}`}
+                                                    className="font-semibold text-gray-900 hover:text-blue-600"
+                                                >
+                                                    {product.seller.name}
+                                                </Link>
                                                 {product.seller.verified && (
                                                     <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
                                                         Verified seller

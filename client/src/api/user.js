@@ -87,3 +87,11 @@ export const deleteCurrentUserAccount = async ({ token, confirmation = "DEACTIVA
     body: { confirmation },
   });
 };
+
+export const getPublicUserProfile = async ({ userId }) => {
+  const response = await apiRequest(`/users/public/${encodeURIComponent(userId)}`, {
+    method: "GET",
+  });
+
+  return response?.data || null;
+};

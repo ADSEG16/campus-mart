@@ -287,7 +287,7 @@ const CampusNavbar = () => {
               type="text"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search textbooks, dorm gear, electronics..."
+              placeholder="Search textbooks, clothing, services, electronics..."
               className="w-full border border-gray-300 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-gray-400"
             />
             {/* Search icon */}

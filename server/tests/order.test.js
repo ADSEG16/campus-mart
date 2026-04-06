@@ -194,6 +194,38 @@ describe('Order routes', () => {
     expect(monitorUserCancellationBehavior).not.toHaveBeenCalled();
   });
 
+  it('blocks seller acceptance/rejection after 48 hours for pending orders', async () => {
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+
+    const save = jest.fn().mockResolvedValue(undefined);
+    const orderDoc = {
+      _id: 'order-1',
+      buyerId: { toString: () => 'buyer-1' },
+      sellerId: { toString: () => 'seller-1' },
+      status: ORDER_STATUS.PENDING,
+      buyerConfirmed: false,
+      sellerConfirmed: false,
+      createdAt: new Date(Date.now() - 49 * 60 * 60 * 1000),
+      save,
+    };
+
+    Order.findById.mockResolvedValue(orderDoc);
+
+    const response = await request(app)
+      .patch('/api/orders/order-1/status')
+      .set('x-user-id', 'seller-1')
+      .send({
+        nextStatus: ORDER_STATUS.MEETUP_SCHEDULED,
+        meetupType: 'verified',
+        meetupLocation: 'UG Library Entrance',
+        meetupScheduledFor: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.body.message).toBe('Seller acceptance or rejection window has expired for this pending order');
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('records buyer delivery confirmation through confirm-delivery endpoint', async () => {
     User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
 
