@@ -7,7 +7,7 @@ export default function PostCard() {
     navigate('/post-item');
   }
     return(
-        <div className="max-w-6xl  p-4 sm:p-6 ">
+        <div className="max-w-[1400px]  p-4 sm:p-6 ">
         {/* Moving out Banner */}
       <div className="mt-8 bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-lg p-6">
         <div className="flex items-center justify-between">

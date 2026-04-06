@@ -3,6 +3,7 @@ const app = require('../src/app');
 const User = require('../src/models/user.model');
 const Order = require('../src/models/order.model');
 const AuditEvent = require('../src/models/auditEvent.model');
+const Product = require('../src/models/product.model');
 const { monitorUserCancellationBehavior } = require('../src/services/cancellationMonitor.service');
 const {
   monitorUserCancellationBehavior: realMonitorUserCancellationBehavior,
@@ -16,6 +17,11 @@ jest.mock('../src/models/user.model');
 jest.mock('../src/models/order.model');
 jest.mock('../src/models/auditEvent.model', () => ({
   create: jest.fn(),
+  find: jest.fn(),
+}));
+jest.mock('../src/models/product.model', () => ({
+  findById: jest.fn(),
+  findByIdAndDelete: jest.fn(),
 }));
 jest.mock('../src/services/cancellationMonitor.service', () => ({
   monitorUserCancellationBehavior: jest.fn(),
@@ -138,6 +144,87 @@ describe('Order monitoring and admin flagged users endpoints', () => {
     );
   });
 
+  it('returns verification queue for admin', async () => {
+    User.findById.mockResolvedValue({ _id: 'admin-1', role: 'admin', flagged: false });
+
+    const queue = [
+      {
+        _id: 'user-queue-1',
+        fullName: 'Queue User',
+        email: 'queue@st.ug.edu.gh',
+        verificationStatus: 'pending',
+      },
+    ];
+
+    User.find.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        sort: jest.fn().mockResolvedValue(queue),
+      }),
+    });
+
+    const response = await request(app)
+      .get('/api/admin/verification-queue')
+      .set('x-user-id', 'admin-1');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data).toEqual(queue);
+  });
+
+  it('returns recent moderation activity for admin', async () => {
+    User.findById.mockResolvedValue({ _id: 'admin-1', role: 'admin', flagged: false });
+
+    const events = [
+      {
+        _id: 'event-1',
+        eventType: 'admin.listing_removed',
+        entityType: 'listing',
+      },
+    ];
+
+    AuditEvent.find.mockReturnValue({
+      populate: jest.fn().mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue(events),
+        }),
+      }),
+    });
+
+    const response = await request(app)
+      .get('/api/admin/activity')
+      .set('x-user-id', 'admin-1');
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data).toEqual(events);
+  });
+
+  it('removes listing and writes audit record for admin', async () => {
+    User.findById.mockResolvedValue({ _id: 'admin-1', role: 'admin', flagged: false });
+
+    const listingId = '507f1f77bcf86cd799439011';
+    Product.findById.mockResolvedValue({
+      _id: listingId,
+      title: 'Old Book',
+      sellerId: 'seller-1',
+    });
+    Product.findByIdAndDelete.mockResolvedValue({ _id: listingId });
+
+    const response = await request(app)
+      .delete(`/api/admin/listings/${listingId}`)
+      .set('x-user-id', 'admin-1')
+      .send({ reason: 'Unsafe item' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.listingId).toBe(listingId);
+    expect(AuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'admin.listing_removed',
+        actorId: 'admin-1',
+        entityType: 'listing',
+        entityId: listingId,
+      })
+    );
+  });
+
   it('applies 7-day threshold rule when monitoring cancellations', async () => {
     process.env.CANCELLATION_FLAG_THRESHOLD = '3';
     Order.countDocuments.mockResolvedValue(3);
@@ -177,7 +264,7 @@ describe('Order monitoring and admin flagged users endpoints', () => {
     const result = await realApplyCancellationTrustScore('buyer-1');
 
     expect(save).toHaveBeenCalledTimes(1);
-    expect(result.actor.trustScore).toBe(TRUST_SCORE_RULES.LOW_TRUST_FLAG_THRESHOLD - 1);
+    expect(result.actor.trustScore).toBe(TRUST_SCORE_RULES.LOW_TRUST_FLAG_THRESHOLD + 1 - TRUST_SCORE_RULES.CANCELLATION_PENALTY);
     expect(result.actor.flagged).toBe(true);
   });
 
@@ -216,6 +303,15 @@ describe('Order monitoring and admin flagged users endpoints', () => {
       { date: '2026-04-01', count: 1 },
       { date: '2026-04-02', count: 3 },
     ]);
+    expect(Order.aggregate).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          $match: expect.objectContaining({
+            status: { $in: ['cancelled', 'Cancelled'] },
+          }),
+        }),
+      ])
+    );
   });
 
   it('returns deterministic flagged users trend analytics for admin', async () => {

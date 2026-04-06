@@ -1,35 +1,57 @@
 import React, { useState } from 'react';
-import secLogo from "../../assets/sec-logo.svg";
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { loginUser } from '../../api/auth';
+import BrandLogo from '../BrandLogo';
 
 export default function LoginForm() {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
     
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Handle login logic here
-        console.log('Login attempt:', { email, password });
-        // You can add API call here
-        navigate('/dashboard'); 
+
+        try {
+            setIsSubmitting(true);
+            setErrorMessage('');
+
+            const { token, user } = await loginUser({ email, password });
+            localStorage.setItem('authToken', token || '');
+            localStorage.setItem('currentUser', JSON.stringify(user || {}));
+
+            navigate('/marketplace');
+        } catch (error) {
+            setErrorMessage(error.message || 'Login failed');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
-        <div className="container-main flex flex-col items-center justify-center min-h-screen px-4">
+        <div className="container-main flex flex-col items-center justify-center w-full px-4 py-8 lg:py-12">
             {/* Added border container */}
             <div className="border border-gray-300 rounded-2xl p-8 w-full max-w-md shadow-lg">
                 <div className="login-header flex flex-col items-center justify-center mb-6">
-                    <img 
-                        src={secLogo} 
-                        alt="SEC Logo" 
-                        className="sec-logo w-16 h-16 mb-4" 
+                    <BrandLogo
+                        to="/"
+                        stacked
+                        className="mb-4"
+                        iconClassName="h-12 w-12"
+                        textClassName="text-2xl"
                     />
                     <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
                     <p className="text-gray-600 mt-2">Log in to the verified student marketplace</p>
                 </div>
                 
                 <form onSubmit={handleSubmit} className="login-form flex flex-col w-full space-y-4">
+                    {errorMessage && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorMessage}
+                        </div>
+                    )}
+
                     <div className='flex flex-col space-y-1'>
                         <label htmlFor="email" className="text-sm font-medium text-gray-700">
                            UNIVERSITY EMAIL
@@ -73,25 +95,26 @@ export default function LoginForm() {
                         </div>
                         
                         <div className="text-sm">
-                            <a href="#" className="text-blue-600 hover:text-blue-800">
+                            <Link to="/forgot-password" className="text-blue-600 hover:text-blue-800">
                                 Forgot password?
-                            </a>
+                            </Link>
                         </div>
                     </div>
                     
                     <button 
                         type="submit" 
+                                                disabled={isSubmitting}
                         className="w-full bg-[#137FEC] text-white py-3 px-4 rounded-2xl hover:bg-blue-700 transition duration-200 font-medium mt-4"
                     >
-                      Login to CampusMart
+                                            {isSubmitting ? 'Logging in...' : 'Login to CampusMart'}
                     </button>
                 </form>
                 
                 <p className="mt-6 text-sm text-gray-600 text-center">
                     New to CampusMart?{' '}
-                    <a href="/signup" className="text-blue-600 hover:text-blue-800 font-medium">
+                    <Link to="/signup" className="text-blue-600 hover:text-blue-800 font-medium">
                         Create a verified account
-                    </a>
+                    </Link>
                 </p>
             </div>
             <div>

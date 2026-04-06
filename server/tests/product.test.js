@@ -2,10 +2,12 @@ const request = require('supertest');
 const app = require('../src/app');
 const User = require('../src/models/user.model');
 const Product = require('../src/models/product.model');
+const Order = require('../src/models/order.model');
 const { uploadManyImages } = require('../src/services/product.service');
 
 jest.mock('../src/models/user.model');
 jest.mock('../src/models/product.model');
+jest.mock('../src/models/order.model');
 jest.mock('../src/services/product.service', () => ({
   uploadManyImages: jest.fn(),
 }));
@@ -13,6 +15,7 @@ jest.mock('../src/services/product.service', () => ({
 const createProductListQueryMock = (result) => ({
   populate: jest.fn().mockReturnThis(),
   select: jest.fn().mockReturnThis(),
+  sort: jest.fn().mockReturnThis(),
   skip: jest.fn().mockReturnThis(),
   limit: jest.fn().mockResolvedValue(result),
 });
@@ -144,6 +147,8 @@ describe('Product routes CRUD', () => {
       sellerId: { toString: () => 'seller-1' },
     });
 
+    Order.exists.mockResolvedValue(null);
+
     Product.findByIdAndDelete.mockResolvedValue({ _id: 'product-1' });
 
     const response = await request(app)
@@ -154,5 +159,24 @@ describe('Product routes CRUD', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.message).toBe('Product deleted successfully');
     expect(Product.findByIdAndDelete).toHaveBeenCalledWith('product-1');
+  });
+
+  it('DELETE /api/products/:id blocks deletion when active order exists', async () => {
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+
+    Product.findById.mockResolvedValue({
+      _id: 'product-1',
+      sellerId: { toString: () => 'seller-1' },
+    });
+
+    Order.exists.mockResolvedValue({ _id: 'order-1' });
+
+    const response = await request(app)
+      .delete('/api/products/product-1')
+      .set('x-user-id', 'seller-1');
+
+    expect(response.statusCode).toBe(409);
+    expect(response.body.message).toBe('Cannot delete listing with active pending or meetup scheduled orders');
+    expect(Product.findByIdAndDelete).not.toHaveBeenCalled();
   });
 });

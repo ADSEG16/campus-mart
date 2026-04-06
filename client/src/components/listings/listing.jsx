@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { 
   Eye, 
   MessageCircle, 
@@ -14,21 +14,49 @@ import {
 import MyListingsHeader from "./header";
 import { useListings } from "../../context";
 import { useNavigate } from "react-router-dom";
+import HistoryList from "../transactions/history";
+import { getStoredAuthToken } from "../../api/http";
+import { deleteProduct, updateProduct } from "../../api/products";
+import { useToast } from "../../context";
 
 const MyListingsContent = () => {
   const [activeTab, setActiveTab] = useState("all");
-  const { listings, updateListingStatus, } = useListings(); //deleteListing 
+  const { listings, refreshListings } = useListings();
+  const [hiddenListingIds, setHiddenListingIds] = useState([]);
+  const [statusOverrides, setStatusOverrides] = useState({});
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+
+  const sellerListings = useMemo(() => {
+    if (!currentUser?._id) {
+      return listings;
+    }
+
+    return listings.filter((listing) => String(listing?.user?.id || "") === String(currentUser._id));
+  }, [listings, currentUser?._id]);
+
+  const sellerListingsWithOverrides = useMemo(() => {
+    return sellerListings
+      .filter((listing) => !hiddenListingIds.includes(String(listing.id)))
+      .map((listing) => {
+        const override = statusOverrides[String(listing.id)] || {};
+        return { ...listing, ...override };
+      });
+  }, [sellerListings, hiddenListingIds, statusOverrides]);
 
   const tabs = [
-    { id: "all", label: "All Listings", count: listings.length },
-    { id: "active", label: "Active", count: listings.filter(l => l.status === "active").length },
-    { id: "sold", label: "Sold", count: listings.filter(l => l.status === "sold").length },
-    { id: "pending", label: "Pending", count: listings.filter(l => l.status === "pending").length }
+    { id: "all", label: "All Listings", count: sellerListingsWithOverrides.length },
+    { id: "active", label: "Active", count: sellerListingsWithOverrides.filter(l => l.status === "active").length },
+    { id: "sold", label: "Sold", count: sellerListingsWithOverrides.filter(l => l.status === "sold").length },
+    { id: "pending", label: "Pending", count: sellerListingsWithOverrides.filter(l => l.status === "pending").length },
+    { id: "transactions", label: "Transaction History" }
   ];
 
+  const isTransactionTab = activeTab === "transactions";
+
   // Filter listings based on active tab
-  const filteredListings = listings.filter(listing => {
+  const filteredListings = sellerListingsWithOverrides.filter(listing => {
     if (activeTab === "all") return true;
     return listing.status === activeTab;
   });
@@ -58,28 +86,75 @@ const MyListingsContent = () => {
     }
   };
 
-  const handleAction = (action, listing) => {
-    switch(action) {
-    case "edit":
-      navigate(`/edit-item/${listing.id}`); // Navigate to edit page
-      break;
+  const handleAction = async (action, listing) => {
+    const syncListing = async (payload) => {
+      const token = getStoredAuthToken();
+      await updateProduct({ token, productId: listing.id, payload, imageFiles: [] });
+      await refreshListings();
+    };
+
+    const runDelete = async () => {
+      const token = getStoredAuthToken();
+      await deleteProduct({ token, productId: listing.id });
+      await refreshListings();
+    };
+
+    const listingId = String(listing.id);
+
+    switch (action) {
+      case "edit":
+        navigate(`/edit-item/${listing.id}`);
+        break;
       case "deactivate":
-        updateListingStatus(listing.id, "inactive");
+        setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "inactive" } }));
+        showToast("Listing deactivated (syncing)...", "info");
+        try {
+          await syncListing({ availabilityStatus: "Unavailable" });
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "inactive" } }));
+          showToast("Listing deactivated.", "success");
+        } catch (error) {
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: listing.status } }));
+          showToast(error.message || "Failed to deactivate listing.", "error");
+        }
         break;
       case "receipt":
-        console.log("View receipt:", listing.id);
+        showToast("Open receipt from transaction history.", "info");
         break;
       case "relist":
-        updateListingStatus(listing.id, "active");
+        setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "active" } }));
+        showToast("Relisting item (syncing)...", "info");
+        try {
+          await syncListing({ availabilityStatus: "Available" });
+          showToast("Listing relisted.", "success");
+        } catch (error) {
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: listing.status } }));
+          showToast(error.message || "Failed to relist listing.", "error");
+        }
         break;
       case "chat":
-        console.log("Open chat:", listing.id);
+        navigate("/messages");
         break;
       case "mark-sold":
-        updateListingStatus(listing.id, "sold", {
-          soldTo: "Buyer",
-          soldDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        });
+        setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: "sold" } }));
+        showToast("Marking item as sold (syncing)...", "info");
+        try {
+          await syncListing({ availabilityStatus: "Sold", stock: 0 });
+          showToast("Listing marked as sold.", "success");
+        } catch (error) {
+          setStatusOverrides((prev) => ({ ...prev, [listingId]: { status: listing.status } }));
+          showToast(error.message || "Failed to mark as sold.", "error");
+        }
+        break;
+      case "delete":
+        setHiddenListingIds((prev) => [...prev, listingId]);
+        showToast("Deleting listing...", "info");
+        try {
+          await runDelete();
+          showToast("Listing deleted.", "success");
+        } catch (error) {
+          setHiddenListingIds((prev) => prev.filter((id) => id !== listingId));
+          showToast(error.message || "Failed to delete listing.", "error");
+        }
         break;
       default:
         break;
@@ -91,6 +166,7 @@ const MyListingsContent = () => {
       const actionLabels = {
         edit: "Edit",
         deactivate: "Deactivate",
+        delete: "Delete",
         receipt: "View Receipt",
         relist: "Relist",
         chat: "Chat",
@@ -100,6 +176,7 @@ const MyListingsContent = () => {
       const actionColors = {
         edit: "text-blue-600 hover:text-blue-700",
         deactivate: "text-gray-600 hover:text-gray-900",
+        delete: "text-red-600 hover:text-red-700",
         receipt: "text-blue-600 hover:text-blue-700",
         relist: "text-gray-600 hover:text-gray-900",
         chat: "text-blue-600 hover:text-blue-700",
@@ -159,7 +236,7 @@ const MyListingsContent = () => {
   };
 
   return (
-    <div className="max-w-7xl p-6 relative">
+    <div className="w-full relative">
       <MyListingsHeader />
       
       {/* Tabs */}
@@ -175,80 +252,88 @@ const MyListingsContent = () => {
             }`}
           >
             {tab.label}
-            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-              activeTab === tab.id
-                ? 'bg-blue-100 text-blue-600'
-                : 'bg-gray-100 text-gray-600'
-            }`}>
-              {tab.count}
-            </span>
+            {typeof tab.count === "number" && (
+              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                activeTab === tab.id
+                  ? 'bg-blue-100 text-blue-600'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Listings Container */}
-      <div className="space-y-4">
-        {filteredListings.length > 0 ? (
-          filteredListings.map((listing) => (
-            <div 
-              key={listing.id} 
-              className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start space-x-4">
-                {/* Product Image */}
-                <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                  {listing.image ? (
-                    <img src={listing.image} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
-                  ) : (
-                    <ImageIcon className="h-8 w-8 text-gray-400" />
-                  )}
-                </div>
-
-                {/* Listing Details */}
-                <div className="flex-1">
-                  {/* Top row with title and price */}
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex flex-row gap-3 items-center">
-                      <h3 className="font-medium text-gray-900">{listing.title}</h3>
-                      <span className="text-gray-500">{getStatusDisplay(listing)}</span>
+      {isTransactionTab ? (
+        <HistoryList />
+      ) : (
+        <>
+          {/* Listings Container */}
+          <div className="space-y-4">
+            {filteredListings.length > 0 ? (
+              filteredListings.map((listing) => (
+                <div 
+                  key={listing.id} 
+                  className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start space-x-4">
+                    {/* Product Image */}
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                      {listing.image ? (
+                        <img src={listing.image} alt={listing.title} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
+                      )}
                     </div>
-                    <div className="text-lg font-bold text-gray-900">
-                      {listing.price}
+
+                    {/* Listing Details */}
+                    <div className="flex-1">
+                      {/* Top row with title and price */}
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex flex-row gap-3 items-center">
+                          <h3 className="font-medium text-gray-900">{listing.title}</h3>
+                          <span className="text-gray-500">{getStatusDisplay(listing)}</span>
+                        </div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {listing.price}
+                        </div>
+                      </div>
+
+                      {/* Status-specific metrics */}
+                      <div className="mb-3">
+                        {renderStatusMetrics(listing)}
+                      </div>
+
+                      {/* Bottom row with action buttons */}
+                      <div className="flex items-center space-x-3 text-sm">
+                        {renderActions(listing).map((action, index) => (
+                          <React.Fragment key={index}>
+                            {action}
+                            {index < listing.actions.length - 1 && (
+                              <span className="text-gray-300">|</span>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Status-specific metrics */}
-                  <div className="mb-3">
-                    {renderStatusMetrics(listing)}
-                  </div>
-
-                  {/* Bottom row with action buttons */}
-                  <div className="flex items-center space-x-3 text-sm">
-                    {renderActions(listing).map((action, index) => (
-                      <React.Fragment key={index}>
-                        {action}
-                        {index < listing.actions.length - 1 && (
-                          <span className="text-gray-300">|</span>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                No {activeTab} listings found
               </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            No {activeTab} listings found
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Pagination/Items Count */}
-      {filteredListings.length > 0 && (
-        <div className="mt-6 text-sm text-gray-500 text-center">
-          Showing 1–{filteredListings.length} of {filteredListings.length} items
-        </div>
+          {/* Pagination/Items Count */}
+          {filteredListings.length > 0 && (
+            <div className="mt-6 text-sm text-gray-500 text-center">
+              Showing 1–{filteredListings.length} of {filteredListings.length} items
+            </div>
+          )}
+        </>
       )}
     </div>
   );

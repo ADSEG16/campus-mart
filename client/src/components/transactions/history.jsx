@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { 
   Download,
   Image as ImageIcon,
@@ -9,6 +9,8 @@ import {
 import TransactionDetails from "./TransactionDetails";
 import SellerRatingPopup from "../popup-rating";
 import ReceiptPopup from "../receipt-popup"; // Import the receipt popup
+import { getStoredAuthToken } from "../../api/http";
+import { listOrders, mapOrderToSummary, submitOrderReview } from "../../api/orders";
 
 const TransactionHistory = () => {
   const [activeTab, setActiveTab] = useState("All Transactions");
@@ -17,59 +19,38 @@ const TransactionHistory = () => {
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const [showReceiptPopup, setShowReceiptPopup] = useState(false); // New state for receipt popup
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   
   const tabs = ["All Transactions", "Purchases", "Sales"];
   
-  const transactions = [
-    {
-      id: 1,
-      title: "Noise Cancelling Headphones",
-      date: "Oct 12, 2024",
-      seller: "Sarah M.",
-      verified: true,
-      status: "Completed - COD",
-      amount: "GHC45.00",
-      cancelled: false,
-      type: "purchase",
-      image: null
-    },
-    {
-      id: 2,
-      title: "Biology Vol 1. Textbook",
-      date: "Oct 08, 2024",
-      seller: "David L.",
-      verified: true,
-      status: "Completed - COD",
-      amount: "GHC120.00",
-      cancelled: false,
-      type: "purchase",
-      image: null
-    },
-    {
-      id: 3,
-      title: "Study Desk Lamp",
-      date: "Sept 24, 2024",
-      seller: "Ryan K.",
-      verified: false,
-      status: "Cancelled",
-      amount: "GHC15.00",
-      cancelled: true,
-      type: "sale",
-      image: null
-    },
-    {
-      id: 4,
-      title: "Dorm Mini Fridge",
-      date: "Sept 15, 2024",
-      seller: "Jordan W.",
-      verified: false,
-      status: "Completed - COD",
-      amount: "GHC85.00",
-      cancelled: false,
-      type: "purchase",
-      image: null
-    }
-  ];
+  useEffect(() => {
+    const loadTransactions = async () => {
+      const authToken = getStoredAuthToken();
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+
+      if (!authToken) {
+        setErrorMessage("Please login to view transactions.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setErrorMessage("");
+        const orders = await listOrders({ token: authToken });
+        const mapped = orders.map((order) => mapOrderToSummary(order, currentUser?._id));
+        setTransactions(mapped);
+      } catch (error) {
+        setErrorMessage(error.message || "Failed to load transactions");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTransactions();
+  }, []);
 
   // Handle opening details sheet
   const handleViewDetails = (transactionId) => {
@@ -112,10 +93,24 @@ const TransactionHistory = () => {
 
   // Handle submitting the review
   const handleSubmitReview = (reviewData) => {
-    console.log("Review submitted:", reviewData);
-    setShowRatingPopup(false);
-    setSelectedTransaction(null);
-    alert("Thank you for your review!");
+    const submit = async () => {
+      try {
+        const authToken = getStoredAuthToken();
+        await submitOrderReview({
+          token: authToken,
+          orderId: selectedTransaction?.id,
+          rating: reviewData.rating,
+          comment: reviewData.review,
+        });
+
+        setShowRatingPopup(false);
+        setSelectedTransaction(null);
+      } catch (error) {
+        alert(error.message || "Failed to submit review");
+      }
+    };
+
+    submit();
   };
 
   // Handle download receipt
@@ -131,18 +126,20 @@ const TransactionHistory = () => {
   };
 
   // Filter transactions based on active tab
-  const filteredTransactions = transactions.filter((transaction) => {
-    if (activeTab === "All Transactions") return true;
-    if (activeTab === "Purchases") return transaction.type === "purchase";
-    if (activeTab === "Sales") return transaction.type === "sale";
-    return true;
-  });
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((transaction) => {
+      if (activeTab === "All Transactions") return true;
+      if (activeTab === "Purchases") return transaction.type === "purchase";
+      if (activeTab === "Sales") return transaction.type === "sale";
+      return true;
+    });
+  }, [activeTab, transactions]);
 
   return (
-    <div className="max-w-7xl p-6 relative">
+    <div className="w-full relative">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Transaction History</h1>
+        {/* <h1 className="text-2xl font-bold text-gray-900 mb-2">Transaction History</h1> */}
         <p className="text-gray-600">Review your past buys and sells within the campus community.</p>
       </div>
 
@@ -165,7 +162,19 @@ const TransactionHistory = () => {
 
       {/* Transactions List */}
       <div className="space-y-4">
-        {filteredTransactions.length > 0 ? (
+        {isLoading && (
+          <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-600">
+            Loading transactions...
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
+
+        {!isLoading && !errorMessage && filteredTransactions.length > 0 ? (
           filteredTransactions.map((transaction) => (
             <div 
               key={transaction.id} 
@@ -228,11 +237,11 @@ const TransactionHistory = () => {
               </div>
             </div>
           ))
-        ) : (
+        ) : !isLoading && !errorMessage ? (
           <div className="text-center py-12 text-gray-500">
             No {activeTab.toLowerCase()} found
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Pagination */}

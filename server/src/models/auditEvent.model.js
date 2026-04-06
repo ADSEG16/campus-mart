@@ -3,8 +3,14 @@ const mongoose = require('mongoose');
 const AUDIT_EVENT_TYPES = Object.freeze([
   'order.status_changed',
   'order.delivery_confirmation_recorded',
+  'trust.score_changed',
+  'review.reported',
+  'review.report_resolved',
   'moderation.verification_approved',
   'moderation.verification_rejected',
+  'admin.complaint_penalty_applied',
+  'admin.account_suspended',
+  'admin.listing_removed',
 ]);
 
 const auditEventSchema = new mongoose.Schema(
@@ -23,7 +29,7 @@ const auditEventSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['order', 'user'],
+      enum: ['order', 'user', 'listing'],
       required: true,
       immutable: true,
     },

@@ -1,11 +1,11 @@
 import LoginForm from "../components/login/form";
-import Navbar from "../components/navbar";
 import Footer from "../components/footer";
 export default function Login() {
     return (
-        <div>
-            <Navbar />
-            <LoginForm />
+        <div className="min-h-screen flex flex-col">
+            <div className="flex-1 flex items-center justify-center">
+                <LoginForm />
+            </div>
             <Footer />
         </div>
     )

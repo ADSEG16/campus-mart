@@ -1,15 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProgressBar from "./progressBar";
 import studentID from "../../assets/studentID.webp";
 import { useNavigate } from "react-router-dom";
 import Navbar from '../navbar';
 import Footer from '../footer';
+import { getStoredAuthToken } from '../../api/http';
+import { uploadStudentId, getCurrentUser } from '../../api/auth';
 
 export default function Verification() {
 	const navigate = useNavigate();
 	const [uploadedFile, setUploadedFile] = useState(null);
 	const [previewUrl, setPreviewUrl] = useState('');
 	const [isDragging, setIsDragging] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isEmailVerified, setIsEmailVerified] = useState(false);
+	const [isLoading, setIsLoading] = useState(true);
+	const [errorMessage, setErrorMessage] = useState('');
+	const [successMessage, setSuccessMessage] = useState('');
+
+	// Check email verification status on mount
+	useEffect(() => {
+		const checkEmailVerification = async () => {
+			try {
+				const authToken = getStoredAuthToken();
+				if (!authToken) {
+					setErrorMessage('Your signup session has expired. Please sign up again.');
+					navigate('/signup');
+					return;
+				}
+
+				const user = await getCurrentUser({ token: authToken });
+				setIsEmailVerified(user.emailVerified || false);
+			} catch (error) {
+				console.error('Failed to check email verification:', error);
+				setErrorMessage('Failed to check email verification status.');
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		checkEmailVerification();
+	}, [navigate]);
 
 	const handleFileChange = (e) => {
 		const file = e.target.files[0];
@@ -67,16 +98,38 @@ export default function Verification() {
 		document.getElementById('studentId').value = '';
 	};
 
-	const handleSubmit = (e) => {
+	const handleSubmit = async (e) => {
 		e.preventDefault();
+		setErrorMessage('');
+		setSuccessMessage('');
+
 		if (!uploadedFile) {
-			alert('Please upload your student ID first');
+			setErrorMessage('Please upload your student ID first');
 			return;
 		}
-		// Handle verification submission logic here
-		console.log('Verification submitted', uploadedFile);
-		// You can add API call here
-		navigate('/signup/profileSetup');
+
+		if (!isEmailVerified) {
+			setErrorMessage('Please verify your email first by clicking the link in your verification email.');
+			return;
+		}
+
+		const authToken = getStoredAuthToken();
+		if (!authToken) {
+			setErrorMessage('Your signup session has expired. Please sign up again.');
+			navigate('/signup');
+			return;
+		}
+
+		try {
+			setIsSubmitting(true);
+			await uploadStudentId({ token: authToken, file: uploadedFile });
+			setSuccessMessage('Verification submitted successfully. Continue to profile setup.');
+			navigate('/signup/profileSetup');
+		} catch (error) {
+			setErrorMessage(error.message || 'Failed to submit verification');
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handleBack = () => {
@@ -109,7 +162,48 @@ export default function Verification() {
 					<h2 className="text-2xl font-bold text-gray-800 mb-2">Step 2: Student Verification</h2>
 					<p className="text-gray-600">To ensure a secure marketplace, we require student verification. Please upload a valid student ID for verification.</p>
 				</div>
-				
+
+				{isLoading ? (
+					<div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+						<div className="flex items-center">
+							<svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+								<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Checking email verification status...
+						</div>
+					</div>
+				) : isEmailVerified ? (
+					<div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+						<div className="flex items-center">
+							<svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+								<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+							</svg>
+							Email verified! You can now upload your student ID.
+						</div>
+					</div>
+				) : (
+					<div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+						<div className="flex items-start">
+							<svg className="w-5 h-5 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+								<path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+							</svg>
+							<span>Check your email to verify your account. Click the verification link we sent to complete email verification.</span>
+						</div>
+					</div>
+				)}
+
+				{errorMessage && (
+					<div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+						{errorMessage}
+					</div>
+				)}
+
+				{successMessage && (
+					<div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+						{successMessage}
+					</div>
+				)}
 				<div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
 					{/* Left Column - Upload Area */}
 					<div className="space-y-4">
@@ -279,14 +373,22 @@ export default function Verification() {
 					<button
 						type="submit"
 						onClick={handleSubmit}
-						disabled={!uploadedFile}
+						disabled={!uploadedFile || isSubmitting || !isEmailVerified || isLoading}
 						className={`w-full px-4 py-3 rounded-2xl transition-all duration-300 font-medium ${
-							uploadedFile 
+							uploadedFile && !isSubmitting && isEmailVerified && !isLoading
 								? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer' 
 								: 'bg-gray-300 text-gray-500 cursor-not-allowed'
 						}`}
 					>
-						{uploadedFile ? 'Submit for Verification' : 'Upload a file to continue'}
+						{isLoading
+							? 'Checking status...'
+							: isSubmitting
+								? 'Submitting...'
+								: !isEmailVerified
+									? 'Verify email to continue'
+									: uploadedFile
+										? 'Submit for Verification'
+										: 'Upload a file to continue'}
 					</button>
 					<button
 						type="button"

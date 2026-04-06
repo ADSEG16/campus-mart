@@ -13,12 +13,13 @@ const productSchema = new mongoose.Schema(
     },
     category: {
       type: String,
+      enum: ['Textbooks', 'Electronics', 'Clothing', 'Furniture', 'Stationery', 'Services', 'Other'],
       required: true,
       trim: true,
     },
     condition: {
       type: String,
-      enum: ['New', 'Like New', 'Good', 'Fair'],
+      enum: ['New', 'Used'],
       required: true,
     },
     meetingSpot: {
@@ -40,6 +41,12 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: ['Available', 'Unavailable', 'Sold'],
       default: 'Available',
+    },
+    status: {
+      type: String,
+      enum: ['active', 'unavailable', 'sold'],
+      default: 'active',
+      deprecated: true,
     },
     stock: {
       type: Number,
