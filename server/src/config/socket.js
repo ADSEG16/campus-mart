@@ -22,7 +22,6 @@ const setupSocket = (io) => {
   io.on("connection", (socket) => {
     console.log("User connected:", socket.user.id);
 
-    // ✅ STEP 4: Join conversation room
     socket.on("conversation:join", async ({ conversationId }, callback) => {
       try {
         if (!conversationId) {
@@ -63,7 +62,6 @@ const setupSocket = (io) => {
       }
     });
 
-    // ✅ STEP 4: Leave conversation room
     socket.on("conversation:leave", ({ conversationId }, callback) => {
       if (!conversationId) {
         return callback?.({ ok: false, message: "conversationId is required" });
