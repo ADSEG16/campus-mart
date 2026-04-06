@@ -24,7 +24,9 @@ import {
   Users,
   X,
   XCircle,
+  LogOut,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import { getApiBaseUrl, getStoredAuthToken } from "../api/http";
 import {
@@ -42,6 +44,7 @@ import {
   removeListingByAdmin,
   resolveReviewReport,
   suspendUserByAdmin,
+  getAllUsers,
 } from "../api/admin";
 import { fetchProducts } from "../api/products";
 import { useToast } from "../context";
@@ -49,6 +52,7 @@ import { useToast } from "../context";
 const sidebarItems = [
   { id: "overview", label: "Overview", description: "Health snapshot", icon: LayoutDashboard },
   { id: "notifications", label: "Alerts", description: "Priority notifications", icon: Bell },
+  { id: "all-users", label: "All Users", description: "User management", icon: Users },
   { id: "verification", label: "Verification Queue", description: "Approve or reject", icon: ShieldCheck },
   { id: "users", label: "User Moderation", description: "Flagged users", icon: Users },
   { id: "reviews", label: "Review Reports", description: "Abuse moderation", icon: AlertTriangle },
@@ -99,6 +103,7 @@ const getCurrentUserSnapshot = () => {
 };
 
 export default function AdminPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -112,6 +117,8 @@ export default function AdminPage() {
   const [complaintReason, setComplaintReason] = useState("Verified complaint from campus community");
   const [listingIdInput, setListingIdInput] = useState("");
   const [listingReason, setListingReason] = useState("Policy violation");
+  const [listingSearch, setListingSearch] = useState("");
+  const [listingsPage, setListingsPage] = useState(1);
   const [verificationQueue, setVerificationQueue] = useState([]);
   const [flaggedUsers, setFlaggedUsers] = useState([]);
   const [listings, setListings] = useState([]);
@@ -122,6 +129,8 @@ export default function AdminPage() {
   const [notifications, setNotifications] = useState([]);
   const [reportedReviews, setReportedReviews] = useState([]);
   const [reportResolutionNote, setReportResolutionNote] = useState("Handled according to community policy");
+  const [allUsers, setAllUsers] = useState([]);
+  const [userCounts, setUserCounts] = useState({ total: 0, byRole: {}, byStatus: {} });
   const { showToast } = useToast();
 
   const currentUser = useMemo(() => getCurrentUserSnapshot(), []);
@@ -156,6 +165,7 @@ export default function AdminPage() {
         getCancellationsTrendAnalytics({ token, days: 7 }),
         getFlaggedUsersTrendAnalytics({ token, days: 7 }),
         getRecentModerationActivity({ token }),
+        getAllUsers({ token }),
       ]);
 
       const failures = [];
@@ -170,6 +180,7 @@ export default function AdminPage() {
         cancellationsResult,
         flaggedTrendResult,
         activityResult,
+        allUsersResult,
       ] = results;
 
       if (verificationResult.status === "fulfilled") {
@@ -224,6 +235,16 @@ export default function AdminPage() {
         setActivity(activityResult.value);
       } else {
         failures.push("activity log");
+      }
+
+      if (allUsersResult.status === "fulfilled") {
+        const response = allUsersResult.value;
+        setAllUsers(response.data || response);
+        if (response.extras?.userCounts) {
+          setUserCounts(response.extras.userCounts);
+        }
+      } else {
+        failures.push("all users");
       }
 
       if (failures.length > 0) {
@@ -402,6 +423,13 @@ export default function AdminPage() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("currentUser");
+    setMobileMenuOpen(false);
+    navigate("/login");
+  };
+
   const filteredVerificationQueue = verificationQueue.filter((user) => {
     const search = verificationSearch.trim().toLowerCase();
     if (!search) return true;
@@ -409,6 +437,35 @@ export default function AdminPage() {
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(search));
   });
+
+  const LISTINGS_PAGE_SIZE = 8;
+  const normalizedListingSearch = listingSearch.trim().toLowerCase();
+  const filteredListings = listings.filter((listing) => {
+    if (!normalizedListingSearch) return true;
+    return [listing?.title, listing?.category, listing?.id]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedListingSearch));
+  });
+
+  const totalListingPages = Math.max(
+    Math.ceil(filteredListings.length / LISTINGS_PAGE_SIZE),
+    1
+  );
+  const safeListingsPage = Math.min(Math.max(listingsPage, 1), totalListingPages);
+  const pagedListings = filteredListings.slice(
+    (safeListingsPage - 1) * LISTINGS_PAGE_SIZE,
+    safeListingsPage * LISTINGS_PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setListingsPage(1);
+  }, [normalizedListingSearch]);
+
+  useEffect(() => {
+    if (listingsPage > totalListingPages) {
+      setListingsPage(totalListingPages);
+    }
+  }, [listingsPage, totalListingPages]);
 
   const totalOrders = ordersByStatus.reduce((sum, row) => sum + Number(row.count || 0), 0);
   const pendingOrders = ordersByStatus.find((row) => String(row.status).toLowerCase() === "pending")?.count || 0;
@@ -450,6 +507,22 @@ export default function AdminPage() {
           </button>
         );
       })}
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="mt-4 w-full rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left text-rose-700 transition-colors hover:bg-rose-100"
+      >
+        <div className="flex items-center gap-3">
+          <span className="rounded-xl bg-rose-100 p-2 text-rose-700">
+            <LogOut className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold">Logout</p>
+            <p className="text-xs text-rose-600">Exit admin workspace</p>
+          </div>
+        </div>
+      </button>
     </nav>
   );
 
@@ -459,10 +532,17 @@ export default function AdminPage() {
       { label: "Flagged users", value: flaggedUsers.length, hint: "Needs moderation", icon: Flag, tone: "from-amber-500 to-orange-500" },
       { label: "Listings", value: listings.length, hint: "Marketplace inventory", icon: ShoppingBag, tone: "from-emerald-500 to-teal-500" },
       { label: "Orders", value: totalOrders, hint: `${pendingOrders} pending, ${cancelledOrders} cancelled`, icon: BarChart3, tone: "from-violet-500 to-fuchsia-500" },
+      { 
+        label: "Total Users", 
+        value: userCounts.total, 
+        hint: Object.entries(userCounts.byRole || {}).map(([role, count]) => `${count} ${role}`).join(", ") || "No users",
+        icon: Users,
+        tone: "from-indigo-500 to-purple-500"
+      },
     ];
 
     return (
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
@@ -899,8 +979,21 @@ export default function AdminPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-xl font-semibold text-slate-900">Quick-select listings</h3>
         <p className="mt-2 text-sm text-slate-500">Use this panel to populate the listing form fast.</p>
+
+        <div className="mt-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={listingSearch}
+              onChange={(event) => setListingSearch(event.target.value)}
+              placeholder="Search listing name, category, or ID"
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500"
+            />
+          </div>
+        </div>
+
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {listings.slice(0, 8).map((listing) => (
+          {pagedListings.map((listing) => (
             <button
               key={listing.id}
               type="button"
@@ -912,8 +1005,40 @@ export default function AdminPage() {
               <p className="mt-1 text-xs text-slate-500">ID: {listing.id}</p>
             </button>
           ))}
-          {listings.length === 0 && <p className="text-sm text-slate-500">No listings loaded.</p>}
+          {filteredListings.length === 0 && (
+            <p className="text-sm text-slate-500">No listings match your search.</p>
+          )}
         </div>
+
+        {filteredListings.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+            <p>
+              Showing {(safeListingsPage - 1) * LISTINGS_PAGE_SIZE + 1}
+              -{Math.min(safeListingsPage * LISTINGS_PAGE_SIZE, filteredListings.length)} of {filteredListings.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setListingsPage((prev) => Math.max(prev - 1, 1))}
+                disabled={safeListingsPage <= 1}
+                className="rounded-xl border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-slate-500">
+                Page {safeListingsPage} of {totalListingPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setListingsPage((prev) => Math.min(prev + 1, totalListingPages))}
+                disabled={safeListingsPage >= totalListingPages}
+                className="rounded-xl border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -1075,9 +1200,71 @@ export default function AdminPage() {
     </section>
   );
 
+  const renderAllUsers = () => (
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5 text-cyan-600" />
+          <h2 className="text-xl font-semibold text-slate-900">All registered users</h2>
+        </div>
+        <span className="rounded-full bg-cyan-100 px-3 py-1 text-sm font-semibold text-cyan-700">
+          {userCounts.total || allUsers.length} total
+        </span>
+      </div>
+      
+      {allUsers.length === 0 ? (
+        <p className="text-sm text-slate-500">No users found.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Trust Score</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Status</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Joined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allUsers.map((user) => {
+                const status = user.flagged ? "flagged" : (user.verificationStatus || "unverified");
+                const statusColor = user.flagged 
+                  ? "bg-red-100 text-red-800"
+                  : status === "verified" ? "bg-green-100 text-green-800"
+                  : "bg-amber-100 text-amber-800";
+                
+                return (
+                  <tr key={user._id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-4 py-3">{user.fullName || "-"}</td>
+                    <td className="px-4 py-3">{user.email}</td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
+                        {user.role || "student"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{user.trustScore || 0}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColor}`}>
+                        {formatLabel(status)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">{formatDateTime(user.createdAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+
   const renderContent = () => {
     if (activeTab === "overview") return renderOverview();
     if (activeTab === "notifications") return renderNotifications();
+    if (activeTab === "all-users") return renderAllUsers();
     if (activeTab === "verification") return renderVerification();
     if (activeTab === "users") return renderUsers();
     if (activeTab === "reviews") return renderReviewReports();
@@ -1119,7 +1306,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 lg:hidden"
+                className="inline-flex h-10 w-10 items-center justify-center text-slate-700 hover:bg-slate-100 lg:hidden"
                 aria-label="Open admin menu"
               >
                 <Menu className="h-5 w-5" />

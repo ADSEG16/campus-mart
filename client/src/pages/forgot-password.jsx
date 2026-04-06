@@ -3,18 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
 import Footer from '../components/footer';
 import { forgotPassword } from '../api/auth';
+import { Mail, CheckCircle, ArrowRight, X } from 'lucide-react';
 
 export default function ForgotPassword() {
 	const navigate = useNavigate();
 	const [email, setEmail] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
-	const [successMessage, setSuccessMessage] = useState('');
+	const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+	const [submittedEmail, setSubmittedEmail] = useState('');
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setErrorMessage('');
-		setSuccessMessage('');
 
 		if (!email.trim()) {
 			setErrorMessage('Please enter your email');
@@ -24,17 +25,19 @@ export default function ForgotPassword() {
 		try {
 			setIsSubmitting(true);
 			await forgotPassword(email.trim());
-			setSuccessMessage('If an account exists with that email, a password reset link has been sent.');
+			setSubmittedEmail(email.trim());
+			setShowConfirmationModal(true);
 			setEmail('');
-			// Optionally redirect after 3 seconds
-			setTimeout(() => {
-				navigate('/login');
-			}, 3000);
 		} catch (error) {
 			setErrorMessage(error.message || 'Failed to send reset link');
 		} finally {
 			setIsSubmitting(false);
 		}
+	};
+
+	const handleCloseModal = () => {
+		setShowConfirmationModal(false);
+		navigate('/login');
 	};
 
 	return (
@@ -61,14 +64,7 @@ export default function ForgotPassword() {
 							</div>
 						)}
 
-						{successMessage && (
-							<div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-								{successMessage}
-								<p className="text-xs mt-2">Redirecting to login...</p>
-							</div>
-						)}
-
-						{!successMessage && (
+						{!showConfirmationModal && (
 							<form onSubmit={handleSubmit} className="space-y-4">
 								<div>
 									<label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -114,17 +110,6 @@ export default function ForgotPassword() {
 								</div>
 							</form>
 						)}
-
-						{successMessage && (
-							<div className="text-center mt-6">
-								<button
-									onClick={() => navigate('/login')}
-									className="text-blue-600 hover:text-blue-800 font-medium"
-								>
-									Go to Login
-								</button>
-							</div>
-						)}
 					</div>
 
 					{/* Help text */}
@@ -136,7 +121,62 @@ export default function ForgotPassword() {
 				</div>
 			</div>
 
+			{/* Email Confirmation Modal */}
+			{showConfirmationModal && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+					<div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 relative">
+						{/* Close button */}
+						<button
+							onClick={handleCloseModal}
+							className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+						>
+							<X className="h-5 w-5" />
+						</button>
+
+						{/* Success icon */}
+						<div className="flex justify-center mb-4">
+							<div className="rounded-full bg-green-100 p-3">
+								<Mail className="h-6 w-6 text-green-600" />
+							</div>
+						</div>
+
+						<h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+							Check your email
+						</h2>
+						
+						<p className="text-gray-600 text-center mb-4">
+							We've sent a password reset link to{' '}
+							<span className="font-semibold text-gray-900">{submittedEmail}</span>
+						</p>
+
+						<div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+							<p className="text-sm text-blue-800">
+								Click the link in the email to reset your password. The link will expire in 1 hour.
+							</p>
+						</div>
+
+						<div className="space-y-3">
+							<button
+								onClick={handleCloseModal}
+								className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+							>
+								Back to Login
+								<ArrowRight className="h-4 w-4" />
+							</button>
+
+							<button
+								onClick={() => setShowConfirmationModal(false)}
+								className="w-full text-blue-600 hover:text-blue-800 font-medium py-2 transition-colors"
+							>
+								Didn't receive the email?
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
 			<Footer />
 		</div>
 	);
 }
+

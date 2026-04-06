@@ -86,3 +86,8 @@ export const resolveReviewReport = async ({ token, reviewId, action, adminNote =
     body: { action, adminNote },
   });
 };
+
+export const getAllUsers = async ({ token }) => {
+  const response = await apiRequest("/admin/users/all", { token });
+  return response;
+};
