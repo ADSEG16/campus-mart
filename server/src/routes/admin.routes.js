@@ -18,6 +18,7 @@ const {
 	applyAdminComplaintPenalty,
 	suspendUserAccount,
 	removeListingByAdmin,
+	getAllUsers,
 } = require('../controllers/admin.controller');
 const { requireAdmin, requireUser } = require('../middleware/auth.middleware');
 
@@ -25,6 +26,7 @@ const router = express.Router();
 
 router.get('/flagged-users', requireUser, requireAdmin, getFlaggedUsers);
 router.get('/verification-queue', requireUser, requireAdmin, getVerificationQueue);
+router.get('/users/all', requireUser, requireAdmin, getAllUsers);
 router.patch('/users/:userId/verify', requireUser, requireAdmin, approveUserVerification);
 router.patch('/users/:userId/reject', requireUser, requireAdmin, rejectUserVerification);
 router.patch('/users/:userId/complaint', requireUser, requireAdmin, applyAdminComplaintPenalty);

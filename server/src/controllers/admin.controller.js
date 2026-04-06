@@ -774,6 +774,42 @@ const removeListingByAdmin = async (req, res, next) => {
   }
 };
 
+const getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.find({})
+      .select('_id fullName email role trustScore flagged verificationStatus createdAt updatedAt')
+      .sort({ createdAt: -1 });
+
+    const userCounts = {
+      total: users.length,
+      byRole: {},
+      byStatus: {},
+    };
+
+    users.forEach((user) => {
+      const role = user.role || 'student';
+      userCounts.byRole[role] = (userCounts.byRole[role] || 0) + 1;
+      
+      const status = user.flagged ? 'flagged' : (user.verificationStatus || 'unverified');
+      userCounts.byStatus[status] = (userCounts.byStatus[status] || 0) + 1;
+    });
+
+    return sendSuccess(res, {
+      message: 'All users fetched successfully',
+      data: users,
+      pagination: {
+        total: users.length,
+        count: users.length,
+      },
+      extras: {
+        userCounts,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   getFlaggedUsers,
   getVerificationQueue,
@@ -793,4 +829,5 @@ module.exports = {
   applyAdminComplaintPenalty,
   suspendUserAccount,
   removeListingByAdmin,
+  getAllUsers,
 };
