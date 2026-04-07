@@ -1,36 +1,38 @@
 const { io } = require("socket.io-client");
 
+const senderToken =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZDQ0NmYwM2ZjNTRkOWE4N2RmNzgzMyIsImlhdCI6MTc3NTUxOTg4MiwiZXhwIjoxNzc1NjA2MjgyfQ.w6uneA2udHFuBVpUfk_Itq_cEwHrJsg1nmyC3TpRfsE";
+const conversationId = "69d44faaa104f9e8d9bc5bbd"; // Your existing conversation
+
 const socket = io("http://localhost:5000", {
-  auth: {
-    token:
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZDBmNDlkNzFmN2JjZTZlZmQwMzJjOCIsImlhdCI6MTc3NTMwNDI2MiwiZXhwIjoxNzc1OTA5MDYyfQ.26D8_hocGnfXf0g9vDsO6Y8tTq9N5w4-MaDqKV6wJYc",
-  },
+  auth: { token: senderToken },
 });
 
 socket.on("connect", () => {
-  console.log("Connected:", socket.id);
+  console.log("Sender Connected:", socket.id);
 
-  socket.emit(
-    "conversation:join",
-    { conversationId: "69d10ca489864b5aa51cef1a" },
-    (res) => {
-      console.log("Join response:", res);
-    },
-  );
+  // Join conversation
+  socket.emit("conversation:join", { conversationId }, (res) => {
+    console.log("Join response:", res);
+
+    if (res.ok) {
+      // Send a test message
+      socket.emit(
+        "message:send",
+        { conversationId, text: "Hello from sender!" },
+        (sendRes) => {
+          console.log("Send response:", sendRes);
+        },
+      );
+    }
+  });
 });
 
-socket.emit(
-  "message:send",
-  { conversationId: "69d10ca489864b5aa51cef1a", text: "Hello test message" },
-  (res) => {
-    console.log("Send response:", res);
-  },
-);
-
-socket.on("message:new", (data) => {
-  console.log("message:new event:", data);
+// Listen for message status updates
+socket.on("message:status", (data) => {
+  console.log("Message status update:", data);
 });
 
-socket.on("connect_error", (err) => {
-  console.log("Connection error:", err.message);
+socket.on("message:new", (msg) => {
+  console.log("New message received:", msg);
 });

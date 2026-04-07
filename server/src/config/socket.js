@@ -4,16 +4,14 @@ const Message = require("../models/message");
 const { encryptText } = require("../services/encryption.service");
 
 const setupSocket = (io) => {
+  // JWT authentication middleware
   io.use((socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
-
-      if (!token) {
-        return next(new Error("No token provided"));
-      }
+      if (!token) return next(new Error("No token provided"));
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.user = decoded;
+      socket.user = decoded; // attach user info to socket
 
       next();
     } catch (err) {
@@ -24,31 +22,27 @@ const setupSocket = (io) => {
   io.on("connection", (socket) => {
     console.log("User connected:", socket.user.id);
 
+    // --- Conversation Join ---
     socket.on("conversation:join", async ({ conversationId }, callback) => {
       try {
-        if (!conversationId) {
+        if (!conversationId)
           return callback?.({
             ok: false,
             message: "conversationId is required",
           });
-        }
 
         const conversation = await Conversation.findById(conversationId);
-
-        if (!conversation) {
+        if (!conversation)
           return callback?.({ ok: false, message: "Conversation not found" });
-        }
 
+        // Check participant (ObjectId -> string comparison)
         const isParticipant = conversation.participants.some(
-          (id) => id.toString() === socket.user.id,
+          (id) => id.toString() === socket.user.id.toString(),
         );
-
-        if (!isParticipant) {
+        if (!isParticipant)
           return callback?.({ ok: false, message: "Not authorized" });
-        }
 
         socket.join(conversationId);
-
         console.log(
           `User ${socket.user.id} joined conversation ${conversationId}`,
         );
@@ -64,13 +58,12 @@ const setupSocket = (io) => {
       }
     });
 
+    // --- Conversation Leave ---
     socket.on("conversation:leave", ({ conversationId }, callback) => {
-      if (!conversationId) {
+      if (!conversationId)
         return callback?.({ ok: false, message: "conversationId is required" });
-      }
 
       socket.leave(conversationId);
-
       console.log(`User ${socket.user.id} left conversation ${conversationId}`);
 
       return callback?.({
@@ -80,37 +73,31 @@ const setupSocket = (io) => {
       });
     });
 
-    // ✅ STEP 5: Send message
+    // --- Send Message ---
     socket.on("message:send", async ({ conversationId, text }, callback) => {
       try {
-        if (!conversationId || !text) {
+        if (!conversationId || !text)
           return callback?.({
             ok: false,
             message: "conversationId and text are required",
           });
-        }
 
         const conversation = await Conversation.findById(conversationId);
-
-        if (!conversation) {
+        if (!conversation)
           return callback?.({ ok: false, message: "Conversation not found" });
-        }
 
         const isParticipant = conversation.participants.some(
-          (id) => id.toString() === socket.user.id,
+          (id) => id.toString() === socket.user.id.toString(),
         );
-
-        if (!isParticipant) {
+        if (!isParticipant)
           return callback?.({ ok: false, message: "Not authorized" });
-        }
 
+        // Identify receiver
         const receiverId = conversation.participants.find(
-          (id) => id.toString() !== socket.user.id,
+          (id) => id.toString() !== socket.user.id.toString(),
         );
-
-        if (!receiverId) {
+        if (!receiverId)
           return callback?.({ ok: false, message: "Receiver not found" });
-        }
 
         const encrypted = encryptText(text);
 
@@ -122,9 +109,11 @@ const setupSocket = (io) => {
           status: "sent",
         });
 
+        // Update conversation lastMessage
         conversation.lastMessage = message._id;
         await conversation.save();
 
+        // Broadcast new message to room
         io.to(conversationId).emit("message:new", {
           messageId: message._id,
           conversationId,
@@ -146,6 +135,75 @@ const setupSocket = (io) => {
       }
     });
 
+    // --- Mark Message Delivered ---
+    socket.on("message:delivered", async ({ messageId }, callback) => {
+      try {
+        if (!messageId)
+          return callback?.({ ok: false, message: "messageId is required" });
+
+        const message = await Message.findById(messageId);
+        if (!message)
+          return callback?.({ ok: false, message: "Message not found" });
+
+        // Only receiver can mark delivered
+        if (message.receiverId.toString() !== socket.user.id.toString())
+          return callback?.({ ok: false, message: "Not authorized" });
+
+        if (message.status === "sent") {
+          message.status = "delivered";
+          message.deliveredAt = new Date();
+          await message.save();
+
+          // Notify sender
+          io.to(message.conversationId.toString()).emit("message:status", {
+            messageId: message._id,
+            status: "delivered",
+            deliveredAt: message.deliveredAt,
+          });
+        }
+
+        return callback?.({ ok: true, message: "Delivered status updated" });
+      } catch (err) {
+        console.error("message:delivered error:", err);
+        return callback?.({ ok: false, message: "Server error" });
+      }
+    });
+
+    // --- Mark Message Read ---
+    socket.on("message:read", async ({ messageId }, callback) => {
+      try {
+        if (!messageId)
+          return callback?.({ ok: false, message: "messageId is required" });
+
+        const message = await Message.findById(messageId);
+        if (!message)
+          return callback?.({ ok: false, message: "Message not found" });
+
+        // Only receiver can mark read
+        if (message.receiverId.toString() !== socket.user.id.toString())
+          return callback?.({ ok: false, message: "Not authorized" });
+
+        if (message.status !== "read") {
+          message.status = "read";
+          message.readAt = new Date();
+          await message.save();
+
+          // Notify sender
+          io.to(message.conversationId.toString()).emit("message:status", {
+            messageId: message._id,
+            status: "read",
+            readAt: message.readAt,
+          });
+        }
+
+        return callback?.({ ok: true, message: "Read status updated" });
+      } catch (err) {
+        console.error("message:read error:", err);
+        return callback?.({ ok: false, message: "Server error" });
+      }
+    });
+
+    // --- Disconnect ---
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.user.id);
     });
