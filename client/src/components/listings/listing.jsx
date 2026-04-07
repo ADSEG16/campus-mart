@@ -2,13 +2,8 @@ import React, { useMemo, useState } from "react";
 import { 
   Eye, 
   MessageCircle, 
-  Edit, 
-  Power, 
-  Receipt, 
-  RefreshCw,
   Clock,
   MapPin,
-  CheckCircle,
   Image as ImageIcon
 } from "lucide-react";
 import MyListingsHeader from "./header";
@@ -49,7 +44,7 @@ const MyListingsContent = () => {
     { id: "all", label: "All Listings", count: sellerListingsWithOverrides.length },
     { id: "active", label: "Active", count: sellerListingsWithOverrides.filter(l => l.status === "active").length },
     { id: "sold", label: "Sold", count: sellerListingsWithOverrides.filter(l => l.status === "sold").length },
-    { id: "pending", label: "Pending", count: sellerListingsWithOverrides.filter(l => l.status === "pending").length },
+    { id: "inactive", label: "Inactive", count: sellerListingsWithOverrides.filter(l => l.status === "inactive").length },
     { id: "transactions", label: "Transaction History" }
   ];
 
@@ -79,6 +74,12 @@ const MyListingsContent = () => {
         return (
           <span className="text-yellow-600 bg-yellow-200 rounded-2xl px-2 py-0.5">
             Pending Meeting
+          </span>
+        );
+      case "inactive":
+        return (
+          <span className="text-orange-700 bg-orange-100 rounded-2xl px-2 py-0.5">
+            Inactive
           </span>
         );
       default:
@@ -175,7 +176,7 @@ const MyListingsContent = () => {
 
       const actionColors = {
         edit: "text-blue-600 hover:text-blue-700",
-        deactivate: "text-gray-600 hover:text-gray-900",
+        deactivate: "text-orange-600 hover:text-orange-700",
         delete: "text-red-600 hover:text-red-700",
         receipt: "text-blue-600 hover:text-blue-700",
         relist: "text-gray-600 hover:text-gray-900",
@@ -307,10 +308,10 @@ const MyListingsContent = () => {
 
                       {/* Bottom row with action buttons */}
                       <div className="flex items-center space-x-3 text-sm">
-                        {renderActions(listing).map((action, index) => (
+                        {renderActions(listing).map((action, index, actions) => (
                           <React.Fragment key={index}>
                             {action}
-                            {index < listing.actions.length - 1 && (
+                            {index < actions.length - 1 && (
                               <span className="text-gray-300">|</span>
                             )}
                           </React.Fragment>

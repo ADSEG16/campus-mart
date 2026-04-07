@@ -340,6 +340,7 @@ const getRecentModerationActivity = async (req, res, next) => {
       eventType: { $in: [
         'moderation.verification_approved',
         'moderation.verification_rejected',
+        'moderation.user_reported',
         'admin.complaint_penalty_applied',
         'admin.account_suspended',
         'admin.listing_removed',
@@ -462,6 +463,7 @@ const getAdminNotifications = async (req, res, next) => {
           $in: [
             'moderation.verification_approved',
             'moderation.verification_rejected',
+            'moderation.user_reported',
             'admin.complaint_penalty_applied',
             'admin.account_suspended',
             'admin.listing_removed',
@@ -617,6 +619,7 @@ const exportModerationActivityCsv = async (req, res, next) => {
           'admin.complaint_penalty_applied',
           'admin.account_suspended',
           'admin.listing_removed',
+           'moderation.user_reported',
           'review.reported',
           'review.report_resolved',
         ],

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import { 
-  MapPin,
   Download,
   Star,
   User,
@@ -13,7 +12,7 @@ import {
 import SellerRatingPopup from "../popup-rating";
 import ReceiptPopup from "../receipt-popup";
 import { getStoredAuthToken } from "../../api/http";
-import { getOrderById, mapOrderToDetails, submitOrderReview } from "../../api/orders";
+import { confirmOrderDelivery, getOrderById, mapOrderToDetails, submitOrderReview, updateOrderStatus } from "../../api/orders";
 
 const TransactionDetails = ({ 
   transactionId, 
@@ -27,6 +26,8 @@ const TransactionDetails = ({
   const [errorMessage, setErrorMessage] = useState("");
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const [showReceiptPopup, setShowReceiptPopup] = useState(false);
+  const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
+  const [receiptNotice, setReceiptNotice] = useState("");
 
   useEffect(() => {
     const loadTransaction = async () => {
@@ -95,6 +96,61 @@ const TransactionDetails = ({
   const handleCloseReceiptPopup = () => {
     setShowReceiptPopup(false);
   };
+
+  const handleConfirmReceipt = async () => {
+    if (!activeTransactionId) return;
+
+    try {
+      setIsConfirmingReceipt(true);
+      setReceiptNotice("");
+
+      const authToken = getStoredAuthToken();
+      if (!authToken) {
+        setReceiptNotice("Please login again to confirm receipt.");
+        return;
+      }
+
+      const { order } = await confirmOrderDelivery({ token: authToken, orderId: activeTransactionId });
+      let finalOrder = order;
+
+      const bothConfirmed = Boolean(order?.buyerConfirmed) && Boolean(order?.sellerConfirmed);
+      const isMeetupScheduled = String(order?.status || "").toLowerCase() === "meetup_scheduled";
+
+      if (bothConfirmed && isMeetupScheduled) {
+        try {
+          finalOrder = await updateOrderStatus({
+            token: authToken,
+            orderId: activeTransactionId,
+            payload: { nextStatus: "delivered" },
+          });
+          setReceiptNotice("Receipt confirmed. Order is now marked delivered.");
+        } catch {
+          setReceiptNotice("Receipt confirmed. Waiting for delivery status sync.");
+        }
+      } else {
+        setReceiptNotice("Receipt confirmed. Waiting for the other party to confirm.");
+      }
+
+      const refreshedOrder = finalOrder?._id
+        ? finalOrder
+        : await getOrderById({ token: authToken, orderId: activeTransactionId });
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      setTransaction(mapOrderToDetails(refreshedOrder, currentUser?._id));
+    } catch (error) {
+      setReceiptNotice(error.message || "Failed to confirm receipt.");
+    } finally {
+      setIsConfirmingReceipt(false);
+    }
+  };
+
+  const rawStatus = String(transaction?.raw?.status || "").toLowerCase();
+  const isMeetupScheduled = rawStatus === "meetup_scheduled";
+  const isCurrentUserSeller =
+    String(transaction?.raw?.sellerId?._id || transaction?.raw?.sellerId || "") ===
+    String(JSON.parse(localStorage.getItem("currentUser") || "{}")?._id || "");
+  const currentUserConfirmed = isCurrentUserSeller
+    ? Boolean(transaction?.raw?.sellerConfirmed)
+    : Boolean(transaction?.raw?.buyerConfirmed);
 
   if (loading) {
     return (
@@ -215,17 +271,29 @@ const TransactionDetails = ({
             ))}
           </div>
 
-          {/* Meeting Point */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg flex flex-col items-center justify-center">
-            <div className="flex items-center space-x-2 mb-1">
-              <MapPin className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-600">Meeting Point</span>
-            </div>
-            <p className="text-sm text-gray-700 font-medium">{transaction.meetingPoint}</p>
+          <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+            Delivery confirmations: Buyer {transaction?.raw?.buyerConfirmed ? "confirmed" : "pending"} • Seller {transaction?.raw?.sellerConfirmed ? "confirmed" : "pending"}
           </div>
+
+          {receiptNotice && (
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              {receiptNotice}
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-4 mt-6">
+            {isMeetupScheduled && !transaction.cancelled && (
+              <button
+                onClick={handleConfirmReceipt}
+                disabled={isConfirmingReceipt || currentUserConfirmed}
+                className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 transition-colors text-sm font-medium"
+              >
+                <span>
+                  {isConfirmingReceipt ? "Confirming..." : currentUserConfirmed ? "Receipt Confirmed" : "Confirm Receipt"}
+                </span>
+              </button>
+            )}
             {!transaction.cancelled && (
               <button 
                 onClick={handleRateSeller}

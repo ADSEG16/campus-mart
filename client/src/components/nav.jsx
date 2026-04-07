@@ -4,7 +4,8 @@ import Notifications from "./NotificationCard";
 import BrandLogo from "./BrandLogo";
 import { getCurrentUser } from "../api/auth";
 import { getStoredAuthToken } from "../api/http";
-import { fetchNotificationFeed } from "../api/notifications";
+import { fetchNotificationFeed, MESSAGE_NOTIFICATION_STORAGE_KEY } from "../api/notifications";
+import { getSocket, onSocketMessage } from "../api/socket";
 
 
 const CampusNavbar = () => {
@@ -23,6 +24,10 @@ const CampusNavbar = () => {
     }
   }, []);
   const [currentUser, setCurrentUser] = useState(initialUser);
+  const [isMenuReady, setIsMenuReady] = useState(() => {
+    if (!getStoredAuthToken()) return true;
+    return Boolean(initialUser && Object.keys(initialUser).length > 0);
+  });
   const currentUserId = currentUser?._id || "guest";
   const token = getStoredAuthToken();
   const isVerifiedUser = Boolean(
@@ -68,6 +73,51 @@ const CampusNavbar = () => {
   }, [refreshNotificationBadge, isVerifiedUser]);
 
   useEffect(() => {
+    if (!token || !currentUserId) return;
+
+    getSocket(token);
+
+    const unsubscribe = onSocketMessage((payload) => {
+      if (location.pathname === "/messages") {
+        return;
+      }
+
+      const createdAt = payload?.createdAt || new Date().toISOString();
+      const route = payload?.conversationId
+        ? `/messages?conversation=${encodeURIComponent(payload.conversationId)}${payload?.orderId ? `&order=${encodeURIComponent(payload.orderId)}` : ""}`
+        : payload?.orderId
+          ? `/messages?order=${encodeURIComponent(payload.orderId)}`
+          : "/messages";
+
+      const incoming = {
+        id: `socket-${payload?.messageId || Date.now()}`,
+        title: "NEW MESSAGE",
+        content: payload?.text ? `New message: ${payload.text}` : "You received a new message.",
+        route,
+        createdAt,
+      };
+
+      let stored = [];
+      try {
+        stored = JSON.parse(localStorage.getItem(MESSAGE_NOTIFICATION_STORAGE_KEY) || "[]");
+        if (!Array.isArray(stored)) {
+          stored = [];
+        }
+      } catch {
+        stored = [];
+      }
+
+      const deduped = [incoming, ...stored.filter((item) => item?.id !== incoming.id)].slice(0, 50);
+      localStorage.setItem(MESSAGE_NOTIFICATION_STORAGE_KEY, JSON.stringify(deduped));
+      refreshNotificationBadge();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [token, currentUserId, location.pathname, refreshNotificationBadge]);
+
+  useEffect(() => {
     const syncCurrentUser = async () => {
       if (!token) return;
 
@@ -80,10 +130,18 @@ const CampusNavbar = () => {
         }
       } catch {
         // Keep cached user data if refresh fails.
+      } finally {
+        setIsMenuReady(true);
       }
     };
 
     syncCurrentUser();
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setIsMenuReady(true);
+    }
   }, [token]);
 
   useEffect(() => {
@@ -272,10 +330,10 @@ const CampusNavbar = () => {
   return (
     <nav
       className={`sticky top-0 z-40 w-full border-b border-gray-200 bg-white shadow-sm transition-transform duration-300 ${
-        isMobileMenuOpen || isNavVisible ? "translate-y-0" : "-translate-y-full"
+        isMobileMenuOpen ? "" : isNavVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-3 flex items-center justify-between gap-4">
+      <div className="max-w-375 mx-auto px-3 sm:px-4 lg:px-4 py-3 flex items-center justify-between gap-4">
       {/* Logo */}
       <BrandLogo to="/marketplace" compact />
 
@@ -374,7 +432,11 @@ const CampusNavbar = () => {
             )}
 
             <div className="space-y-2">
-              {isAdmin ? (
+              {!isMenuReady ? (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                  Loading menu...
+                </div>
+              ) : isAdmin ? (
                 <>
                   <NavLink to="/safety" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
                     Safety

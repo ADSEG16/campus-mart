@@ -142,6 +142,19 @@ export const updateOrderStatus = async ({ token, orderId, payload }) => {
   return response.data;
 };
 
+export const confirmOrderDelivery = async ({ token, orderId }) => {
+  const response = await apiRequest(`/orders/${encodeURIComponent(orderId)}/confirm-delivery`, {
+    method: "PATCH",
+    token,
+  });
+
+  return {
+    order: response?.data || null,
+    buyerConfirmed: Boolean(response?.extras?.buyerConfirmed),
+    sellerConfirmed: Boolean(response?.extras?.sellerConfirmed),
+  };
+};
+
 export const submitOrderReview = async ({ token, orderId, rating, comment }) => {
   return apiRequest(`/orders/${encodeURIComponent(orderId)}/reviews`, {
     method: "POST",

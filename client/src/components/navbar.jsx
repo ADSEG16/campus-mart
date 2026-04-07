@@ -134,7 +134,7 @@ export default function Navbar({ variant = "default" }) {
                 <div className="flex items-center justify-between h-16">
                    {/* Logo and Brand */}
                     <div className="shrink-0">
-                        <BrandLogo to="/dashboard" />
+                        <BrandLogo to="/marketplace" />
                     </div>
 
                     {/* Desktop Navigation Links */}

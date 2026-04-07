@@ -1,5 +1,6 @@
 import React from "react";
 import { Plus, ArrowUpDown } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const MyListingsHeader = () => {
   
@@ -22,10 +23,10 @@ const MyListingsHeader = () => {
         </button>
 
         {/* New Listing Button */}
-          <button className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto">
+          <Link to="/post-item" className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           <span>New Listing</span>
-        </button>
+        </Link>
       </div>
     </div>
   );

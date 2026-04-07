@@ -24,7 +24,7 @@ const MarketplaceDashboard = () => {
     const matchesSearch =
       !searchQuery ||
       [listing.title, listing.subtitle, listing.description]
-        .some((field) => field.toLowerCase().includes(searchQuery));
+        .some((field) => String(field || "").toLowerCase().includes(searchQuery));
     return matchesCategory && matchesSearch;
   });
 

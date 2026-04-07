@@ -28,10 +28,10 @@ export const mapProductToListing = (product) => {
   const seller = product?.sellerId || {};
   const sellerName = seller?.fullName || seller?.email || "Campus Seller";
 
-  const normalizedAvailability = String(product?.availabilityStatus || "");
-  const actions = normalizedAvailability === "Available"
+  const normalizedAvailability = String(product?.availabilityStatus || "").toLowerCase();
+  const actions = normalizedAvailability === "available"
     ? ["edit", "deactivate", "mark-sold", "delete"]
-    : normalizedAvailability === "Sold"
+    : normalizedAvailability === "sold"
       ? ["relist", "delete"]
       : ["relist", "edit", "delete"];
 
@@ -65,7 +65,7 @@ export const mapProductToListing = (product) => {
     postedDate: product.createdAt || "",
     actions,
     soldTo: null,
-    soldDate: null,
+    soldDate: toListingStatus(product.availabilityStatus) === "sold" ? (product.updatedAt || product.createdAt || "") : null,
     meetingTime: null,
     meetingLocation: null,
     createdAt: product.createdAt ? new Date(product.createdAt) : new Date(),

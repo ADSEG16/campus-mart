@@ -1,6 +1,7 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
-const Product = require("./product.model");
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const Product = require('./product.model');
+const { deleteManyFromCloudinary } = require('../services/product.service');
 
 const DEFAULT_USER_SETTINGS = Object.freeze({
   emailNotifications: true,
@@ -47,166 +48,175 @@ const sanitizeUserDocument = (userDoc) => {
 };
 
 const userSchema = new mongoose.Schema(
-  {
-    fullName: {
-      type: String,
-      trim: true,
-      required: true,
-    },
-    department: {
-      type: String,
-      trim: true,
-      required: true,
-    },
-    email: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      required: [true, "Email is required"],
-      unique: true,
-      match: [/^[^\s@]+@st\.ug\.edu\.gh$/i, "Email must be a valid UG address"],
-    },
-    graduationYear: {
-      type: Number,
-      required: true,
-    },
-    password: {
-      type: String,
-      required: [true, "Password is required"],
-      minlength: 6,
-      select: false,
-    },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
-    },
-    verificationStatus: {
-      type: String,
-      enum: ["pending", "verified", "rejected"],
-      default: "pending",
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    studentIdUrl: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-    flagged: {
-      type: Boolean,
-      default: false,
-    },
-    bio: {
-      type: String,
-      default: "",
-      maxlength: 200,
-      trim: true,
-    },
-    settings: {
-      emailNotifications: {
-        type: Boolean,
-        default: DEFAULT_USER_SETTINGS.emailNotifications,
-      },
-      inAppAlerts: {
-        type: Boolean,
-        default: DEFAULT_USER_SETTINGS.inAppAlerts,
-      },
-      marketing: {
-        type: Boolean,
-        default: DEFAULT_USER_SETTINGS.marketing,
-      },
-      twoFactor: {
-        type: Boolean,
-        default: DEFAULT_USER_SETTINGS.twoFactor,
-      },
-    },
-    watchlist: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
-      },
-    ],
-    trustScore: {
-      type: Number,
-      default: 50,
-      min: 0,
-      max: 100,
-    },
-    profileImageUrl: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-    emailVerified: {
-      type: Boolean,
-      default: false,
-    },
-    emailVerifiedAt: {
-      type: Date,
-      default: null,
-    },
-    emailVerificationTokenHash: {
-      type: String,
-      default: null,
-      select: false,
-    },
-    emailVerificationTokenExpiresAt: {
-      type: Date,
-      default: null,
-      select: false,
-    },
-    passwordResetTokenHash: {
-      type: String,
-      default: null,
-      select: false,
-    },
-    passwordResetTokenExpiresAt: {
-      type: Date,
-      default: null,
-      select: false,
-    },
-    online: { type: Boolean, default: false },
-    lastSeen: { type: Date, default: Date.now },
-  },
-  {
-    timestamps: true,
-  },
+	{
+		fullName: {
+			type: String,
+			trim: true,
+			required: true,
+		},
+		department: {
+			type: String,
+			trim: true,
+			required: true,
+		},
+		email: {
+			type: String,
+			trim: true,
+			lowercase: true,
+			required: [true, 'Email is required'],
+			unique: true,
+			// Keeping the specific UG email validation from Cloudinary branch
+			match: [/^[^\s@]+@st\.ug\.edu\.gh$/i, 'Email must be a valid UG address'],
+		},
+		graduationYear: {
+			type: Number,
+			required: true,
+		},
+		password: {
+			type: String,
+			required: [true, 'Password is required'],
+			minlength: 6,
+			select: false, // Ensures password isn't returned in queries by default
+		},
+		role: {
+			type: String,
+			enum: ['user', 'admin'],
+			default: 'user',
+		},
+		// Integrated verificationStatus from Cloudinary branch
+		verificationStatus: {
+			type: String,
+			enum: ['pending', 'verified', 'rejected'],
+			default: 'pending',
+		},
+		// Added isVerified boolean from dev branch for quick logic checks
+		isVerified: {
+			type: Boolean,
+			default: false,
+		},
+		studentIdUrl: {
+			type: String,
+			default: null,
+			trim: true,
+		},
+		flagged: {
+			type: Boolean,
+			default: false,
+		},
+		bio: {
+			type: String,
+			default: '',
+			maxlength: 200,
+			trim: true,
+		},
+		settings: {
+			emailNotifications: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.emailNotifications,
+			},
+			inAppAlerts: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.inAppAlerts,
+			},
+			marketing: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.marketing,
+			},
+			twoFactor: {
+				type: Boolean,
+				default: DEFAULT_USER_SETTINGS.twoFactor,
+			},
+		},
+		watchlist: [
+			{
+				type: mongoose.Schema.Types.ObjectId,
+				ref: 'Product',
+			},
+		],
+		trustScore: {
+			type: Number,
+			default: 50,
+			min: 0,
+			max: 100,
+		},
+		profileImageUrl: {
+			type: String, // Cloudinary URL will be stored here
+			default: null,
+			trim: true,
+		},
+		profileImagePublicId: {
+			type: String,
+			default: null,
+			trim: true,
+		},
+		emailVerified: {
+			type: Boolean,
+			default: false,
+		},
+		emailVerifiedAt: {
+			type: Date,
+			default: null,
+		},
+		emailVerificationTokenHash: {
+			type: String,
+			default: null,
+			select: false,
+		},
+		emailVerificationTokenExpiresAt: {
+			type: Date,
+			default: null,
+			select: false,
+		},
+		passwordResetTokenHash: {
+			type: String,
+			default: null,
+			select: false,
+		},
+		passwordResetTokenExpiresAt: {
+			type: Date,
+			default: null,
+			select: false,
+		},
+	},
+	{
+		timestamps: true,
+	}
 );
 
 const cascadeDeleteSellerListings = async (userId) => {
   if (!userId) return;
 
-  await Product.deleteMany({ sellerId: userId });
+	const sellerProducts = await Product.find({ sellerId: userId }).select('images.publicId');
+	const publicIds = sellerProducts.flatMap((product) =>
+		Array.isArray(product.images)
+			? product.images.map((image) => image?.publicId).filter(Boolean)
+			: []
+	);
+
+	await deleteManyFromCloudinary(publicIds);
+	await Product.deleteMany({ sellerId: userId });
 };
 
-userSchema.pre("findOneAndDelete", async function () {
-  const user = await this.model.findOne(this.getFilter()).select("_id");
-  if (user?._id) {
-    await cascadeDeleteSellerListings(user._id);
-  }
+userSchema.pre('findOneAndDelete', async function () {
+	const user = await this.model.findOne(this.getFilter()).select('_id profileImagePublicId');
+	if (user?._id) {
+		await deleteManyFromCloudinary([user.profileImagePublicId]);
+		await cascadeDeleteSellerListings(user._id);
+	}
 });
 
-userSchema.pre(
-  "deleteOne",
-  { document: true, query: false },
-  async function () {
-    await cascadeDeleteSellerListings(this._id);
-  },
-);
+userSchema.pre('deleteOne', { document: true, query: false }, async function () {
+	await deleteManyFromCloudinary([this.profileImagePublicId]);
+	await cascadeDeleteSellerListings(this._id);
+});
 
-userSchema.pre(
-  "deleteOne",
-  { document: false, query: true },
-  async function () {
-    const user = await this.model.findOne(this.getFilter()).select("_id");
-    if (user?._id) {
-      await cascadeDeleteSellerListings(user._id);
-    }
-  },
-);
+userSchema.pre('deleteOne', { document: false, query: true }, async function () {
+	const user = await this.model.findOne(this.getFilter()).select('_id profileImagePublicId');
+	if (user?._id) {
+		await deleteManyFromCloudinary([user.profileImagePublicId]);
+		await cascadeDeleteSellerListings(user._id);
+	}
+});
 
 userSchema.set("toJSON", {
   transform: (doc, ret) => sanitizeUserDocument(ret),

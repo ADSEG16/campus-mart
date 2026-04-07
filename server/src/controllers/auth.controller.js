@@ -636,6 +636,7 @@ const uploadProfileImage = async (req, res, next) => {
 		const uploaded = await uploadSingleProfileImage(req.file);
 
     user.profileImageUrl = uploaded.secureUrl;
+		user.profileImagePublicId = uploaded.publicId;
 
     await user.save();
 
