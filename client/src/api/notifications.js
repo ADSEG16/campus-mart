@@ -1,5 +1,18 @@
 import { listOrders } from "./orders";
 
+export const MESSAGE_NOTIFICATION_STORAGE_KEY = "campusmart.messageNotifications.v1";
+
+const readStoredMessageNotifications = () => {
+  try {
+    const raw = localStorage.getItem(MESSAGE_NOTIFICATION_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const relativeFromDate = (value) => {
   const date = new Date(value || Date.now());
   const diffMs = Date.now() - date.getTime();
@@ -14,8 +27,20 @@ const relativeFromDate = (value) => {
 
 export const fetchNotificationFeed = async ({ token, currentUserId }) => {
   const orders = await listOrders({ token });
+  const messageNotifications = readStoredMessageNotifications().map((item, index) => {
+    const createdAt = item?.createdAt || new Date().toISOString();
+    return {
+      id: item?.id || `msg-notification-${index}`,
+      type: "message",
+      title: item?.title || "NEW MESSAGE",
+      content: item?.content || "You have a new message.",
+      route: item?.route || "/messages",
+      time: relativeFromDate(createdAt),
+      createdAt,
+    };
+  });
 
-  return orders.slice(0, 12).map((order) => {
+  const orderNotifications = orders.map((order) => {
     const isSeller = String(order?.sellerId?._id || order?.sellerId) === String(currentUserId || "");
     const actor = isSeller ? order?.buyerId : order?.sellerId;
     const actorName = actor?.fullName || actor?.email || "Campus User";
@@ -55,8 +80,13 @@ export const fetchNotificationFeed = async ({ token, currentUserId }) => {
       type,
       title,
       content,
+      route: `/messages?order=${encodeURIComponent(order?._id || "")}`,
       time: relativeFromDate(order?.updatedAt || order?.createdAt),
       createdAt: order?.updatedAt || order?.createdAt,
     };
   });
+
+  return [...messageNotifications, ...orderNotifications]
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, 20);
 };

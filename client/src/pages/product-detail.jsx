@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Heart, MessageCircle, MapPin, Star } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/navbar";
 import ConfirmInterestModal from "../components/ConfirmInterestModal";
 import { fetchProductById } from "../api/products";
 import { getStoredAuthToken } from "../api/http";
 import { createOrder, listSellerReviews, reportReviewAbuse } from "../api/orders";
+import { startConversation } from "../api/conversations";
 import { useToast } from "../context";
 
 export default function ProductDetail() {
@@ -19,6 +20,7 @@ export default function ProductDetail() {
     const [reviewSummary, setReviewSummary] = useState({ averageRating: 0, ratingCount: 0 });
     const [reportingReviewId, setReportingReviewId] = useState("");
     const { id } = useParams();
+    const navigate = useNavigate();
     const { showToast } = useToast();
 
     useEffect(() => {
@@ -128,11 +130,32 @@ export default function ProductDetail() {
         return ["/vite.svg"];
     }, [product]);
 
+    const openSellerChat = async () => {
+        const token = getStoredAuthToken();
+        if (!token) {
+            setActionError("Please login to message the seller.");
+            return;
+        }
+
+        try {
+            setActionError("");
+            const conversation = await startConversation({
+                token,
+                recipientId: product?.seller?.id,
+                productId: product?.id,
+            });
+
+            navigate(`/messages?conversation=${encodeURIComponent(conversation?._id || conversation?.id || "")}&product=${encodeURIComponent(product?.id || "")}&chat=${encodeURIComponent(product?.seller?.id || "")}`);
+        } catch (error) {
+            setActionError(error.message || "Failed to open chat with seller.");
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50">
                 <Navbar variant="product" />
-                <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-10">
+                <div className="max-w-375 mx-auto px-3 sm:px-4 lg:px-4 py-10">
                     <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
                         Loading product details...
                     </div>
@@ -145,7 +168,7 @@ export default function ProductDetail() {
         return (
             <div className="min-h-screen bg-gray-50">
                 <Navbar variant="product" />
-                <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-10">
+                <div className="max-w-375 mx-auto px-3 sm:px-4 lg:px-4 py-10">
                     <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
                         {errorMessage || "Product not found"}
                     </div>
@@ -158,12 +181,12 @@ export default function ProductDetail() {
         <div className="min-h-screen bg-gray-50">
             <Navbar variant="product" />
             
-            <div className="max-w-[1400px] mx-auto px-3 sm:px-4 lg:px-4 py-6">
+            <div className="max-w-350 mx-auto px-3 sm:px-4 lg:px-4 py-6">
                 {/* Breadcrumb */}
                 <div className="flex items-center text-sm text-gray-600 mb-6">
-                    <Link to="/dashboard" className="hover:text-gray-900">Marketplace</Link>
+                    <Link to="/marketplace" className="hover:text-gray-900">Marketplace</Link>
                     <span className="mx-2">›</span>
-                    <Link to="/dashboard" className="hover:text-gray-900">{product.category}</Link>
+                    <Link to="/marketplace" className="hover:text-gray-900">{product.category}</Link>
                     <span className="mx-2">›</span>
                     <span className="text-gray-900">{product.title}</span>
                 </div>
@@ -253,7 +276,11 @@ export default function ProductDetail() {
                                     </div>
                                 </div>
                                 <Link 
-                                    to={`/messages?chat=${product.seller.id}`}
+                                    to="#"
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        openSellerChat();
+                                    }}
                                     className="w-full mt-4 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
                                 >
                                     <MessageCircle className="w-5 h-5 mr-2" />
@@ -364,13 +391,20 @@ export default function ProductDetail() {
                                 return;
                             }
 
-                            await createOrder({
+                            const createdOrder = await createOrder({
                                 token,
                                 items: [{ productId: product.id, quantity: 1 }],
                             });
 
+                            const conversation = await startConversation({
+                                token,
+                                recipientId: product?.seller?.id,
+                                productId: product?.id,
+                                orderId: createdOrder?._id || createdOrder?.id || null,
+                            });
+
                             setShowModal(false);
-                            window.location.href = `/messages?chat=${product?.seller?.id || ""}`;
+                            window.location.href = `/messages?conversation=${encodeURIComponent(conversation?._id || conversation?.id || "")}&product=${encodeURIComponent(product.id)}&chat=${encodeURIComponent(product?.seller?.id || "")}&order=${encodeURIComponent(createdOrder?._id || createdOrder?.id || "")}`;
                         } catch (error) {
                             setActionError(error.message || "Failed to create order.");
                             setShowModal(false);

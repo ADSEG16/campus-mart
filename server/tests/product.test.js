@@ -23,6 +23,11 @@ const createProductListQueryMock = (result) => ({
 describe('Product routes CRUD', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Product deletion now checks historical orders for cleanup.
+    Order.find.mockReturnValue({
+      select: jest.fn().mockResolvedValue([]),
+    });
   });
 
   it('GET /api/products returns paginated products', async () => {

@@ -6,6 +6,7 @@ const AUDIT_EVENT_TYPES = Object.freeze([
   'trust.score_changed',
   'review.reported',
   'review.report_resolved',
+  'moderation.user_reported',
   'moderation.verification_approved',
   'moderation.verification_rejected',
   'admin.complaint_penalty_applied',

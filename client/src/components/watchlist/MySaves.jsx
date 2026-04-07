@@ -107,7 +107,7 @@ const MyWatchlist = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-2">Your watchlist is empty</h3>
           <p className="text-gray-500 mb-4">Save items you're interested in by clicking the heart icon</p>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/marketplace")}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Browse Marketplace

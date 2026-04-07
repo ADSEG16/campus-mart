@@ -111,7 +111,7 @@ const PostNewItem = () => {
       });
 
       await refreshListings();
-      navigate("/dashboard");
+      navigate("/marketplace");
     } catch (error) {
       setErrorMessage(error.message || "Failed to post item");
     } finally {

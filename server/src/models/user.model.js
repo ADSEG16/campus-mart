@@ -1,47 +1,50 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const Product = require('./product.model');
+const { deleteManyFromCloudinary } = require('../services/product.service');
 
 const DEFAULT_USER_SETTINGS = Object.freeze({
-	emailNotifications: true,
-	inAppAlerts: true,
-	marketing: false,
-	twoFactor: true,
+  emailNotifications: true,
+  inAppAlerts: true,
+  marketing: false,
+  twoFactor: true,
 });
 
 const sanitizeUserDocument = (userDoc) => {
-	if (!userDoc) return null;
+  if (!userDoc) return null;
 
-	const user = userDoc.toObject ? userDoc.toObject({ transform: false }) : userDoc;
+  const user = userDoc.toObject
+    ? userDoc.toObject({ transform: false })
+    : userDoc;
 
-	return {
-		_id: user._id,
-		fullName: user.fullName,
-		department: user.department,
-		email: user.email,
-		graduationYear: user.graduationYear,
-		role: user.role,
-		verificationStatus: user.verificationStatus,
-		isVerified: user.isVerified,
-		emailVerified: user.emailVerified,
-		emailVerifiedAt: user.emailVerifiedAt,
-		studentIdUrl: user.studentIdUrl,
-		profileImageUrl: user.profileImageUrl,
-		bio: user.bio,
-		settings: {
-			...DEFAULT_USER_SETTINGS,
-			...(user.settings || {}),
-		},
-		watchlist: Array.isArray(user.watchlist)
-			? user.watchlist
-				.map((item) => String(item?._id || item || ''))
-				.filter(Boolean)
-			: [],
-		trustScore: user.trustScore,
-		flagged: user.flagged,
-		createdAt: user.createdAt,
-		updatedAt: user.updatedAt,
-	};
+  return {
+    _id: user._id,
+    fullName: user.fullName,
+    department: user.department,
+    email: user.email,
+    graduationYear: user.graduationYear,
+    role: user.role,
+    verificationStatus: user.verificationStatus,
+    isVerified: user.isVerified,
+    emailVerified: user.emailVerified,
+    emailVerifiedAt: user.emailVerifiedAt,
+    studentIdUrl: user.studentIdUrl,
+    profileImageUrl: user.profileImageUrl,
+    bio: user.bio,
+    settings: {
+      ...DEFAULT_USER_SETTINGS,
+      ...(user.settings || {}),
+    },
+    watchlist: Array.isArray(user.watchlist)
+      ? user.watchlist
+          .map((item) => String(item?._id || item || ""))
+          .filter(Boolean)
+      : [],
+    trustScore: user.trustScore,
+    flagged: user.flagged,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
 };
 
 const userSchema = new mongoose.Schema(
@@ -141,6 +144,11 @@ const userSchema = new mongoose.Schema(
 			default: null,
 			trim: true,
 		},
+		profileImagePublicId: {
+			type: String,
+			default: null,
+			trim: true,
+		},
 		emailVerified: {
 			type: Boolean,
 			default: false,
@@ -176,60 +184,67 @@ const userSchema = new mongoose.Schema(
 );
 
 const cascadeDeleteSellerListings = async (userId) => {
-	if (!userId) return;
+  if (!userId) return;
 
+	const sellerProducts = await Product.find({ sellerId: userId }).select('images.publicId');
+	const publicIds = sellerProducts.flatMap((product) =>
+		Array.isArray(product.images)
+			? product.images.map((image) => image?.publicId).filter(Boolean)
+			: []
+	);
+
+	await deleteManyFromCloudinary(publicIds);
 	await Product.deleteMany({ sellerId: userId });
 };
 
 userSchema.pre('findOneAndDelete', async function () {
-	const user = await this.model.findOne(this.getFilter()).select('_id');
+	const user = await this.model.findOne(this.getFilter()).select('_id profileImagePublicId');
 	if (user?._id) {
+		await deleteManyFromCloudinary([user.profileImagePublicId]);
 		await cascadeDeleteSellerListings(user._id);
 	}
 });
 
 userSchema.pre('deleteOne', { document: true, query: false }, async function () {
+	await deleteManyFromCloudinary([this.profileImagePublicId]);
 	await cascadeDeleteSellerListings(this._id);
 });
 
 userSchema.pre('deleteOne', { document: false, query: true }, async function () {
-	const user = await this.model.findOne(this.getFilter()).select('_id');
+	const user = await this.model.findOne(this.getFilter()).select('_id profileImagePublicId');
 	if (user?._id) {
+		await deleteManyFromCloudinary([user.profileImagePublicId]);
 		await cascadeDeleteSellerListings(user._id);
 	}
 });
 
-userSchema.set('toJSON', {
-	transform: (doc, ret) => sanitizeUserDocument(ret),
+userSchema.set("toJSON", {
+  transform: (doc, ret) => sanitizeUserDocument(ret),
 });
 
-userSchema.set('toObject', {
-	transform: (doc, ret) => sanitizeUserDocument(ret),
+userSchema.set("toObject", {
+  transform: (doc, ret) => sanitizeUserDocument(ret),
 });
 
-// --- Security Middleware from Dev Branch ---
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) {
+    return;
+  }
 
-// Hash password before saving
-userSchema.pre('save', async function () {
-	if (!this.isModified('password')) {
-		return;
-	}
-
-	const salt = await bcrypt.genSalt(12);
-	this.password = await bcrypt.hash(this.password, salt);
+  const salt = await bcrypt.genSalt(12);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Instance method to compare passwords
 userSchema.methods.comparePassword = async function (candidatePassword) {
-	return bcrypt.compare(candidatePassword, this.password);
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
 userSchema.methods.sanitizeUser = function () {
-	return sanitizeUserDocument(this);
+  return sanitizeUserDocument(this);
 };
 
 userSchema.statics.sanitizeUser = function (userDoc) {
-	return sanitizeUserDocument(userDoc);
+  return sanitizeUserDocument(userDoc);
 };
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);

@@ -15,31 +15,48 @@ export default function Verification() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isEmailVerified, setIsEmailVerified] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
+	const [isRechecking, setIsRechecking] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 	const [successMessage, setSuccessMessage] = useState('');
 
+	const checkEmailVerification = async ({ silent = false } = {}) => {
+		try {
+			if (!silent) {
+				setIsRechecking(true);
+			}
+
+			const authToken = getStoredAuthToken();
+			if (!authToken) {
+				setErrorMessage('Your signup session has expired. Please sign up again.');
+				navigate('/signup');
+				return;
+			}
+
+			const response = await getCurrentUser({ token: authToken });
+			const user = response?.data || response || {};
+			const emailVerified = Boolean(user?.emailVerified);
+
+			setIsEmailVerified(emailVerified);
+			localStorage.setItem('currentUser', JSON.stringify(user));
+
+			if (emailVerified) {
+				setErrorMessage('');
+				setSuccessMessage('Email verified successfully. You can continue with student verification.');
+			}
+		} catch (error) {
+			console.error('Failed to check email verification:', error);
+			setErrorMessage('Failed to check email verification status.');
+		} finally {
+			if (!silent) {
+				setIsRechecking(false);
+			}
+			setIsLoading(false);
+		}
+	};
+
 	// Check email verification status on mount
 	useEffect(() => {
-		const checkEmailVerification = async () => {
-			try {
-				const authToken = getStoredAuthToken();
-				if (!authToken) {
-					setErrorMessage('Your signup session has expired. Please sign up again.');
-					navigate('/signup');
-					return;
-				}
-
-				const user = await getCurrentUser({ token: authToken });
-				setIsEmailVerified(user.emailVerified || false);
-			} catch (error) {
-				console.error('Failed to check email verification:', error);
-				setErrorMessage('Failed to check email verification status.');
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		checkEmailVerification();
+		checkEmailVerification({ silent: true });
 	}, [navigate]);
 
 	const handleFileChange = (e) => {
@@ -149,17 +166,17 @@ export default function Verification() {
 	return (
 		<div>
 			<Navbar />
-		<div className="container-main flex flex-col items-center justify-center min-h-screen px-4 ">
+		<div className="container-main flex flex-col items-center justify-center min-h-screen px-3 sm:px-4 py-6 sm:py-8">
 			{/* Progress Bar */}
 			<div className="w-full bg-white mb-2">
-				<div className="max-w-2xl mx-auto px-4 py-6">
+				<div className="max-w-2xl mx-auto px-1 sm:px-4 py-4 sm:py-6">
 					<ProgressBar currentStep={2} />
 				</div>
 			</div>
 			
-			<div className="border border-gray-300 rounded-2xl p-8 w-2xl max-w-3xl shadow-lg bg-white">
-				<div className="flex flex-col items-left justify-left mb-6">
-					<h2 className="text-2xl font-bold text-gray-800 mb-2">Step 2: Student Verification</h2>
+			<div className="w-full max-w-3xl border border-gray-300 rounded-xl sm:rounded-2xl p-4 sm:p-8 shadow-lg bg-white">
+				<div className="flex flex-col items-start justify-start mb-6">
+					<h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Step 2: Student Verification</h2>
 					<p className="text-gray-600">To ensure a secure marketplace, we require student verification. Please upload a valid student ID for verification.</p>
 				</div>
 
@@ -188,8 +205,16 @@ export default function Verification() {
 							<svg className="w-5 h-5 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
 								<path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
 							</svg>
-							<span>Check your email to verify your account. Click the verification link we sent to complete email verification.</span>
+							<span>Check your email to verify your account. Click the verification link we sent, then tap Recheck Verification below.</span>
 						</div>
+						<button
+							type="button"
+							onClick={() => checkEmailVerification()}
+							disabled={isRechecking}
+							className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+						>
+							{isRechecking ? 'Checking...' : 'Recheck Verification'}
+						</button>
 					</div>
 				)}
 
@@ -204,7 +229,7 @@ export default function Verification() {
 						{successMessage}
 					</div>
 				)}
-				<div className='grid grid-cols-1 md:grid-cols-2 gap-8'>
+				<div className='grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8'>
 					{/* Left Column - Upload Area */}
 					<div className="space-y-4">
 						<label className="block text-sm font-medium text-gray-700">
@@ -250,7 +275,7 @@ export default function Verification() {
 								</div>
 							) : (
 								// Uploaded file preview
-								<div className="flex items-center space-x-4">
+								<div className="flex items-center gap-3 sm:gap-4">
 									{previewUrl ? (
 										// Image preview
 										<div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
@@ -354,7 +379,7 @@ export default function Verification() {
 									<img 
 										src={studentID} 
 										alt="Student ID Example" 
-										className="w-full h-48 object-contain rounded-lg"
+										className="w-full h-40 sm:h-48 object-contain rounded-lg"
 									/>
 									<div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end justify-center">
 										<p className="text-white text-xs p-2">Example of a valid student ID</p>
@@ -401,7 +426,7 @@ export default function Verification() {
 			</div>
 		</div>
 		<div>
-                <div className="mt-8 flex flex-row justify-center items-center gap-6 text-gray-500 text-sm">
+	                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-6 text-gray-500 text-sm px-4 text-center sm:text-left">
                     <p className="flex items-center">
                         <span className="mr-1 text-[#137FEC]">✓</span> 
                         Verified Student

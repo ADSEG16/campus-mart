@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { User, Lock, Bell, Shield, ChevronRight, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
@@ -11,6 +11,8 @@ import {
     updateCurrentUserSettings,
     getTrustAnalytics,
     deleteCurrentUserAccount,
+    replaceCurrentUserAvatar,
+    uploadCurrentUserAvatar,
 } from "../api/user";
 
 const DEFAULT_SETTINGS = {
@@ -24,6 +26,7 @@ export default function Settings() {
     const hasDigit = (value) => /\d/.test(String(value || ""));
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingBio, setIsSavingBio] = useState(false);
+    const [isSavingAvatar, setIsSavingAvatar] = useState(false);
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [isLoadingTrust, setIsLoadingTrust] = useState(false);
     const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
@@ -31,6 +34,7 @@ export default function Settings() {
     const [isDeactivating, setIsDeactivating] = useState(false);
     const [saveMessage, setSaveMessage] = useState("");
     const navigate = useNavigate();
+    const avatarInputRef = useRef(null);
 
     const initialUser = useMemo(() => {
         try {
@@ -83,6 +87,7 @@ export default function Settings() {
     const [editableGraduationYear, setEditableGraduationYear] = useState(currentUser?.graduationYear || "");
     const [editableBio, setEditableBio] = useState(currentUser?.bio || "");
     const email = currentUser?.email || "Not provided";
+    const profileImageUrl = String(currentUser?.profileImageUrl || "").trim();
     const isVerified = Boolean(
         currentUser?.isVerified ||
         String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
@@ -101,6 +106,45 @@ export default function Settings() {
     const [trustTimeline, setTrustTimeline] = useState([]);
     const [currentTrustScore, setCurrentTrustScore] = useState(currentUser?.trustScore || 50);
     const { showToast } = useToast();
+
+    const handleAvatarButtonClick = () => {
+        avatarInputRef.current?.click();
+    };
+
+    const handleAvatarChange = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+
+        if (!file) {
+            return;
+        }
+
+        const token = getStoredAuthToken();
+        if (!token) {
+            showToast("Please log in again.", "error");
+            return;
+        }
+
+        try {
+            setIsSavingAvatar(true);
+            const avatarResponse = profileImageUrl
+                ? await replaceCurrentUserAvatar({ token, file })
+                : await uploadCurrentUserAvatar({ token, file });
+
+            const updatedUser = {
+                ...currentUser,
+                profileImageUrl: avatarResponse?.profileImageUrl || avatarResponse?.data?.profileImageUrl || currentUser?.profileImageUrl || null,
+            };
+
+            setCurrentUser(updatedUser);
+            localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+            showToast(profileImageUrl ? "Profile photo updated." : "Profile photo uploaded.", "success");
+        } catch (error) {
+            showToast(error.message || "Failed to upload profile photo.", "error");
+        } finally {
+            setIsSavingAvatar(false);
+        }
+    };
 
     useEffect(() => {
         setEditableName(currentUser?.fullName || "Campus User");
@@ -234,7 +278,7 @@ export default function Settings() {
         <div className="min-h-screen bg-gray-50">
             <Navbar variant="settings" />
             
-            <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-8">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-4 py-8">
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Sidebar (desktop only) */}
                     <div className="hidden lg:block lg:w-72 lg:border-r lg:border-gray-200 lg:pr-6">
@@ -263,8 +307,16 @@ export default function Settings() {
                     {/* Main Content */}
                     <div className="flex-1 lg:pl-6">
                         <div className="p-2 mb-6 text-center lg:hidden">
-                            <div className="w-14 h-14 bg-orange-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <span className="text-orange-600 font-semibold">{initials}</span>
+                            <div className="w-14 h-14 overflow-hidden bg-orange-200 rounded-full flex items-center justify-center mx-auto mb-3 ring-4 ring-orange-50">
+                                {profileImageUrl ? (
+                                    <img
+                                        src={profileImageUrl}
+                                        alt={`${fullName} profile`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="text-orange-600 font-semibold">{initials}</span>
+                                )}
                             </div>
                             <div className="font-semibold text-gray-900">{fullName}</div>
                             <div className="text-sm text-gray-500 break-all">{email}</div>
@@ -282,6 +334,48 @@ export default function Settings() {
                             <div className="flex items-center mb-6">
                                 <User className="w-6 h-6 text-blue-600 mr-2" />
                                 <h2 className="text-xl font-semibold text-gray-900">Profile Information</h2>
+                            </div>
+
+                            <div className="mb-6 flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-16 w-16 overflow-hidden rounded-full bg-blue-600 flex items-center justify-center ring-4 ring-white shadow-sm">
+                                        {profileImageUrl ? (
+                                            <img
+                                                src={profileImageUrl}
+                                                alt={`${fullName} profile`}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="text-base font-semibold text-white">{initials}</span>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-gray-900">Profile photo</p>
+                                        <p className="text-sm text-gray-500">
+                                            {profileImageUrl
+                                                ? "Replace your current avatar or upload a new one."
+                                                : "Upload a profile photo. If you skip this, we’ll show your initials."}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        ref={avatarInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleAvatarChange}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleAvatarButtonClick}
+                                        disabled={isSavingAvatar}
+                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {isSavingAvatar ? "Uploading..." : profileImageUrl ? "Replace Photo" : "Upload Photo"}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-6">
