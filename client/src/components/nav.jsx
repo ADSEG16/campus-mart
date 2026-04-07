@@ -30,7 +30,6 @@ const CampusNavbar = () => {
   });
   const currentUserId = currentUser?._id || "guest";
   const token = getStoredAuthToken();
-  const isAuthenticatedUser = Boolean(token);
   const isVerifiedUser = Boolean(
     token && (
       currentUser?.isVerified ||
