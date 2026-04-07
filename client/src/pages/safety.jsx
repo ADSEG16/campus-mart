@@ -33,16 +33,7 @@ export default function Safety() {
                                 <p className="text-gray-600 mb-4">
                                     Always meet in designated campus areas with CCTV coverage and high foot traffic. Avoid private residences or secluded spots.
                                 </p>
-                                <ul className="space-y-2">
-                                    <li className="flex items-start">
-                                        <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3"></span>
-                                        <span className="text-gray-700">Student Union Lobby</span>
-                                    </li>
-                                    <li className="flex items-start">
-                                        <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3"></span>
-                                        <span className="text-gray-700">Main Library Entrance</span>
-                                    </li>
-                                </ul>
+                               
                             </div>
 
                             {/* Item Inspection */}
@@ -58,7 +49,7 @@ export default function Safety() {
                                 </p>
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                     <p className="text-sm text-blue-800">
-                                        <span className="font-semibold">💡 EXPERT TIP:</span> REQUEST MORE PHOTOS IN CHAT FIRST
+                                        <span className="font-semibold">💡 EXPERT TIP:</span> REQUEST MORE PHOTOS VIA OTHER CHANNELS
                                     </p>
                                 </div>
                             </div>
@@ -72,7 +63,7 @@ export default function Safety() {
                                     Payment Security
                                 </h3>
                                 <p className="text-gray-600 mb-4">
-                                    Use Cash on Delivery (COD) or instant digital transfers (Zelle/Venmo) only once you have the item in hand.
+                                    Use Cash on Delivery (COD) or instant digital transfers (Momo) only once you have the item in hand.
                                 </p>
                                 <div className="flex gap-2">
                                     <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full font-medium">
@@ -96,7 +87,7 @@ export default function Safety() {
                                     Trust your instincts. If a user acts suspiciously or requests an unsafe location, flag them immediately via the chat menu.
                                 </p>
                                 <Link to="/messages" className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center">
-                                    HOW TO REPORT A USER →
+                                    REPORT A USER →
                                 </Link>
                             </div>
                         </div>
@@ -105,13 +96,13 @@ export default function Safety() {
                         <div className="bg-white rounded-xl p-8 shadow-sm text-center">
                             <div className="w-full max-w-md mx-auto mb-6">
                                 <div className="bg-linear-to-br from-teal-500 to-teal-700 rounded-lg p-8 text-white">
-                                    <div className="text-sm font-medium mb-2">CAMPUS HUBS</div>
+                                    <div className="text-sm font-medium mb-2">CAMPUS</div>
                                     <div className="flex items-center justify-center space-x-4 mb-4">
                                         <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
                                         <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
                                         <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
                                     </div>
-                                    <div className="text-xs opacity-75">DINING HALLS</div>
+                                    <div className="text-3xl font-bold">SAFE ZONE</div>
                                 </div>
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-3">
@@ -128,7 +119,7 @@ export default function Safety() {
                         {/* Campus Security */}
                         <div className="bg-white rounded-xl p-6 shadow-sm">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                CAMPUS SECURITY
+                                SECURITY
                             </h3>
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
@@ -143,7 +134,7 @@ export default function Safety() {
                                 
                                 <div className="p-3 border border-gray-200 rounded-lg">
                                     <div className="text-sm font-medium text-gray-700">Campus Police</div>
-                                    <div className="text-lg font-semibold text-gray-900">(555) 123-4567</div>
+                                    <div className="text-lg font-semibold text-gray-900">911</div>
                                 </div>
                                 
                                 <div className="p-3 border border-gray-200 rounded-lg">

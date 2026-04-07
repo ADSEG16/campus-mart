@@ -4,7 +4,8 @@ import Notifications from "./NotificationCard";
 import BrandLogo from "./BrandLogo";
 import { getCurrentUser } from "../api/auth";
 import { getStoredAuthToken } from "../api/http";
-import { fetchNotificationFeed } from "../api/notifications";
+import { fetchNotificationFeed, MESSAGE_NOTIFICATION_STORAGE_KEY } from "../api/notifications";
+import { getSocket, onSocketMessage } from "../api/socket";
 
 
 const CampusNavbar = () => {
@@ -25,6 +26,7 @@ const CampusNavbar = () => {
   const [currentUser, setCurrentUser] = useState(initialUser);
   const currentUserId = currentUser?._id || "guest";
   const token = getStoredAuthToken();
+  const isAuthenticatedUser = Boolean(token);
   const isVerifiedUser = Boolean(
     token && (
       currentUser?.isVerified ||
@@ -66,6 +68,51 @@ const CampusNavbar = () => {
   React.useEffect(() => {
     refreshNotificationBadge();
   }, [refreshNotificationBadge, isVerifiedUser]);
+
+  useEffect(() => {
+    if (!token || !currentUserId) return;
+
+    getSocket(token);
+
+    const unsubscribe = onSocketMessage((payload) => {
+      if (location.pathname === "/messages") {
+        return;
+      }
+
+      const createdAt = payload?.createdAt || new Date().toISOString();
+      const route = payload?.conversationId
+        ? `/messages?conversation=${encodeURIComponent(payload.conversationId)}${payload?.orderId ? `&order=${encodeURIComponent(payload.orderId)}` : ""}`
+        : payload?.orderId
+          ? `/messages?order=${encodeURIComponent(payload.orderId)}`
+          : "/messages";
+
+      const incoming = {
+        id: `socket-${payload?.messageId || Date.now()}`,
+        title: "NEW MESSAGE",
+        content: payload?.text ? `New message: ${payload.text}` : "You received a new message.",
+        route,
+        createdAt,
+      };
+
+      let stored = [];
+      try {
+        stored = JSON.parse(localStorage.getItem(MESSAGE_NOTIFICATION_STORAGE_KEY) || "[]");
+        if (!Array.isArray(stored)) {
+          stored = [];
+        }
+      } catch {
+        stored = [];
+      }
+
+      const deduped = [incoming, ...stored.filter((item) => item?.id !== incoming.id)].slice(0, 50);
+      localStorage.setItem(MESSAGE_NOTIFICATION_STORAGE_KEY, JSON.stringify(deduped));
+      refreshNotificationBadge();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [token, currentUserId, location.pathname, refreshNotificationBadge]);
 
   useEffect(() => {
     const syncCurrentUser = async () => {
@@ -275,7 +322,7 @@ const CampusNavbar = () => {
         isMobileMenuOpen || isNavVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-3 flex items-center justify-between gap-4">
+      <div className="max-w-375 mx-auto px-3 sm:px-4 lg:px-4 py-3 flex items-center justify-between gap-4">
       {/* Logo */}
       <BrandLogo to="/marketplace" compact />
 
@@ -383,7 +430,7 @@ const CampusNavbar = () => {
                     Admin
                   </NavLink>
                 </>
-              ) : isVerifiedUser ? (
+              ) : isAuthenticatedUser ? (
                 <>
                   <NavLink to="/marketplace" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
                     Marketplace

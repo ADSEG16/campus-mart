@@ -3,6 +3,11 @@ const Conversation = require("../models/conversation");
 const Message = require("../models/message");
 const { encryptText } = require("../services/encryption.service");
 
+const isConversationExpired = (conversation) => {
+  if (!conversation?.expiresAt) return false;
+  return new Date(conversation.expiresAt).getTime() <= Date.now();
+};
+
 const setupSocket = (io) => {
   // JWT authentication middleware
   io.use((socket, next) => {
@@ -20,8 +25,6 @@ const setupSocket = (io) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.user.id);
-
     // --- Conversation Join ---
     socket.on("conversation:join", async ({ conversationId }, callback) => {
       try {
@@ -35,6 +38,10 @@ const setupSocket = (io) => {
         if (!conversation)
           return callback?.({ ok: false, message: "Conversation not found" });
 
+        if (isConversationExpired(conversation)) {
+          return callback?.({ ok: false, message: "Conversation has expired" });
+        }
+
         // Check participant (ObjectId -> string comparison)
         const isParticipant = conversation.participants.some(
           (id) => id.toString() === socket.user.id.toString(),
@@ -43,9 +50,6 @@ const setupSocket = (io) => {
           return callback?.({ ok: false, message: "Not authorized" });
 
         socket.join(conversationId);
-        console.log(
-          `User ${socket.user.id} joined conversation ${conversationId}`,
-        );
 
         return callback?.({
           ok: true,
@@ -64,7 +68,6 @@ const setupSocket = (io) => {
         return callback?.({ ok: false, message: "conversationId is required" });
 
       socket.leave(conversationId);
-      console.log(`User ${socket.user.id} left conversation ${conversationId}`);
 
       return callback?.({
         ok: true,
@@ -85,6 +88,10 @@ const setupSocket = (io) => {
         const conversation = await Conversation.findById(conversationId);
         if (!conversation)
           return callback?.({ ok: false, message: "Conversation not found" });
+
+        if (isConversationExpired(conversation)) {
+          return callback?.({ ok: false, message: "Conversation has expired" });
+        }
 
         const isParticipant = conversation.participants.some(
           (id) => id.toString() === socket.user.id.toString(),
@@ -117,8 +124,10 @@ const setupSocket = (io) => {
         io.to(conversationId).emit("message:new", {
           messageId: message._id,
           conversationId,
+          orderId: conversation.orderId,
           senderId: socket.user.id,
           receiverId,
+          text,
           createdAt: message.createdAt,
           status: message.status,
         });
@@ -203,10 +212,6 @@ const setupSocket = (io) => {
       }
     });
 
-    // --- Disconnect ---
-    socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.user.id);
-    });
   });
 };
 

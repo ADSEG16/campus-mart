@@ -51,6 +51,7 @@ const ProfileSidebar = () => {
 
   const fullName = currentUser?.fullName || "Campus User";
   const email = currentUser?.email || "Not provided";
+  const profileImageUrl = String(currentUser?.profileImageUrl || "").trim();
   const isVerified = Boolean(
     currentUser?.isVerified ||
     String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
@@ -75,8 +76,16 @@ const ProfileSidebar = () => {
     <div className="w-full lg:w-64 bg-white rounded-2xl p-6">
       {/* User Profile */}
       <div className="mb-6 text-center">
-        <div className="mx-auto h-14 w-14 rounded-full bg-blue-600 flex items-center justify-center mb-3">
-          <span className="text-white font-semibold text-sm">{initials}</span>
+        <div className="mx-auto mb-3 h-14 w-14 overflow-hidden rounded-full bg-blue-600 flex items-center justify-center ring-4 ring-blue-50">
+          {profileImageUrl ? (
+            <img
+              src={profileImageUrl}
+              alt={`${fullName} profile`}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="text-white font-semibold text-sm">{initials}</span>
+          )}
         </div>
         <h2 className="font-semibold text-gray-900">{fullName}</h2>
         <p className="text-sm text-gray-500 break-all mt-0.5">{email}</p>

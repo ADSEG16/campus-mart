@@ -33,6 +33,11 @@ const messageSchema = new mongoose.Schema(
 
     deliveredAt: { type: Date, default: null },
     readAt: { type: Date, default: null },
+    expiresAt: {
+      type: Date,
+      default: null,
+      index: { expireAfterSeconds: 0 },
+    },
   },
   { timestamps: true },
 );

@@ -1,12 +1,14 @@
 import { X, ShoppingCart, Shield } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function ConfirmInterestModal({ product, onClose, onConfirm }) {
+    const navigate = useNavigate();
+
     const handleProceed = () => {
         if (onConfirm) {
             onConfirm();
         } else {
-            window.location.href = '/messages';
+            navigate('/messages');
         }
     };
 
@@ -74,7 +76,7 @@ export default function ConfirmInterestModal({ product, onClose, onConfirm }) {
                 </div>
 
                 <div className="text-center text-sm text-gray-500 mt-4">
-                    ALEX WILL BE NOTIFIED TO CONFIRM
+                    The seller will be notified to confirm
                 </div>
             </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   MessageCircle, 
   TrendingDown, 
@@ -14,6 +15,7 @@ import { getStoredAuthToken } from "../api/http";
 import { fetchNotificationFeed } from "../api/notifications";
 
 const Notifications = ({ onMarkAllRead, onNotificationsStateChange }) => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -57,6 +59,10 @@ const Notifications = ({ onMarkAllRead, onNotificationsStateChange }) => {
   }, [currentUserId, onNotificationsStateChange]);
 
   const handleMarkAllRead = () => {
+    if (notifications.length === 0) {
+      return;
+    }
+
     const readMarkerKey = `notifications:lastReadAt:${currentUserId || "guest"}`;
     localStorage.setItem(readMarkerKey, new Date().toISOString());
 
@@ -109,7 +115,7 @@ const Notifications = ({ onMarkAllRead, onNotificationsStateChange }) => {
           className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
         >
           <CheckCheck className="h-4 w-4" />
-          <span>Mark all as read</span>
+          <span>{notifications.length === 0 ? "No messages" : "Mark all as read"}</span>
         </button>
       </div>
 
@@ -126,6 +132,7 @@ const Notifications = ({ onMarkAllRead, onNotificationsStateChange }) => {
         {notifications.map((notification) => (
           <div 
             key={notification.id} 
+            onClick={() => navigate(notification.route || "/messages")}
             className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${(typeStyles[notification.type] || typeStyles.system).bgColor} bg-opacity-30`}
           >
             <div className="flex items-start space-x-4">

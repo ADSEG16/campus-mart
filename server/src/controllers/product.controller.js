@@ -1,6 +1,8 @@
 const Product = require('../models/product.model');
 const Order = require('../models/order.model');
-const { uploadManyImages } = require('../services/product.service');
+const Conversation = require('../models/conversation');
+const Message = require('../models/message');
+const { uploadManyImages, deleteManyFromCloudinary = async () => {} } = require('../services/product.service');
 const { ORDER_STATUS } = require('../constants/order.status');
 const { sendSuccess, sendError } = require('../utils/response');
 
@@ -378,7 +380,25 @@ const deleteProduct = async (req, res, next) => {
       });
     }
 
+    const imagePublicIds = Array.isArray(product.images)
+      ? product.images.map((image) => image?.publicId).filter(Boolean)
+      : [];
+
+    const relatedOrders = await Order.find({ 'items.productId': product._id }).select('_id');
+    const relatedOrderIds = relatedOrders.map((order) => order._id);
+
+    if (relatedOrderIds.length > 0) {
+      const relatedConversations = await Conversation.find({ orderId: { $in: relatedOrderIds } }).select('_id');
+      const relatedConversationIds = relatedConversations.map((conversation) => conversation._id);
+
+      if (relatedConversationIds.length > 0) {
+        await Message.deleteMany({ conversationId: { $in: relatedConversationIds } });
+        await Conversation.deleteMany({ _id: { $in: relatedConversationIds } });
+      }
+    }
+
     await Product.findByIdAndDelete(productId);
+    await deleteManyFromCloudinary(imagePublicIds);
 
     return sendSuccess(res, {
       message: 'Product deleted successfully',

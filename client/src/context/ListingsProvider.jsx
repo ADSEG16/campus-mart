@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ListingsContext } from "./ListingsContext";
 import { fetchProducts } from "../api/products";
 import { fetchRecommendations } from "../api/recommendations";
@@ -9,7 +9,7 @@ export const ListingsProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
-  const loadListings = async () => {
+  const loadListings = useCallback(async () => {
     try {
       setIsLoading(true);
       setLoadError(null);
@@ -43,11 +43,11 @@ export const ListingsProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadListings();
-  }, []);
+  }, [loadListings]);
 
   // Add a new listing
   const addListing = (newListing) => {
@@ -106,22 +106,21 @@ export const ListingsProvider = ({ children }) => {
     return listings.filter((listing) => listing.status === status);
   };
 
-  return (
-    <ListingsContext.Provider
-      value={{
-        listings,
-        addListing,
-        updateListing,
-        updateListingStatus,
-        deleteListing,
-        getListingById,
-        getListingsByStatus,
-        isLoading,
-        loadError,
-        refreshListings: loadListings,
-      }}
-    >
-      {children}
-    </ListingsContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      listings,
+      addListing,
+      updateListing,
+      updateListingStatus,
+      deleteListing,
+      getListingById,
+      getListingsByStatus,
+      isLoading,
+      loadError,
+      refreshListings: loadListings,
+    }),
+    [listings, isLoading, loadError, loadListings]
   );
+
+  return <ListingsContext.Provider value={contextValue}>{children}</ListingsContext.Provider>;
 };

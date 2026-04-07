@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 export default function CTABanner() {
     const navigate = useNavigate();
     const handleBackToMarketplace = () => {
-        navigate("/dashboard");
+        navigate("/marketplace");
     }
     return(
         <div className="max-w-[1500px] mx-auto px-3 sm:px-4 lg:px-4 py-4 sm:py-6">

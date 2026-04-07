@@ -1,6 +1,8 @@
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const Review = require('../models/review.model');
+const Conversation = require('../models/conversation');
+const Message = require('../models/message');
 const mongoose = require('mongoose');
 const { monitorUserCancellationBehavior } = require('../services/cancellationMonitor.service');
 const {
@@ -15,6 +17,189 @@ const {
   ORDER_ALLOWED_TRANSITIONS,
   ORDER_STATUS_VALUES,
 } = require('../constants/order.status');
+
+const DEFAULT_SMTP_FROM = 'CampusMart <no-reply@st.ug.edu.gh>';
+
+const parseBooleanEnv = (value, fallback = false) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
+};
+
+const createSmtpTransport = () => {
+  const host = process.env.SMTP_HOST;
+  const port = Number.parseInt(process.env.SMTP_PORT, 10);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || Number.isNaN(port) || !user || !pass) {
+    const error = new Error('SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS.');
+    error.statusCode = 500;
+    throw error;
+  }
+
+  let nodemailer;
+  try {
+    nodemailer = require('nodemailer');
+  } catch (error) {
+    const moduleError = new Error('Nodemailer is not available. Install dependencies and restart the server.');
+    moduleError.statusCode = 500;
+    throw moduleError;
+  }
+
+  const secure = parseBooleanEnv(process.env.SMTP_SECURE, port === 465);
+  const rejectUnauthorized = parseBooleanEnv(process.env.SMTP_REJECT_UNAUTHORIZED, true);
+  const requireTLS = parseBooleanEnv(process.env.SMTP_REQUIRE_TLS, port === 587);
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    requireTLS,
+    auth: {
+      user,
+      pass,
+    },
+    ...(rejectUnauthorized ? {} : { tls: { rejectUnauthorized: false } }),
+  });
+};
+
+const resolveSmtpFrom = () => {
+  const configuredFrom = (process.env.SMTP_FROM || '').trim();
+  const smtpUser = (process.env.SMTP_USER || '').trim();
+
+  const fallbackSender = smtpUser ? `CampusMart <${smtpUser}>` : DEFAULT_SMTP_FROM;
+
+  if (!configuredFrom) {
+    return fallbackSender;
+  }
+
+  if (configuredFrom.includes('<') && configuredFrom.includes('>')) {
+    return configuredFrom;
+  }
+
+  const emailMatch = configuredFrom.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi);
+  if (!emailMatch) {
+    return fallbackSender;
+  }
+
+  const email = String(emailMatch[0]).trim();
+  if ((email.match(/@/g) || []).length !== 1) {
+    return fallbackSender;
+  }
+
+  const displayName = configuredFrom
+    .replace(email, '')
+    .replace(/[<>\"]/g, '')
+    .replace(/[:;,]+$/g, '')
+    .trim();
+
+  return displayName ? `${displayName} <${email}>` : `CampusMart <${email}>`;
+};
+
+const buildDeliveryEmail = ({ recipientName, order, roleLabel }) => {
+  const meetingPoint = order?.meetupLocation || 'a verified meeting point';
+  const orderTitle = order?.items?.[0]?.productId?.title || 'Campus Mart order';
+  const statusLabel = String(order?.status || 'Delivered').toUpperCase();
+  const safeName = recipientName || 'there';
+
+  return {
+    subject: `Your ${orderTitle} order has been marked delivered`,
+    text: `Hi ${safeName},
+
+Your ${roleLabel} order for ${orderTitle} has now been marked as delivered.
+
+Meeting point: ${meetingPoint}
+Status: ${statusLabel}
+
+You can open the order thread in Campus Mart to review the conversation history.
+`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6; background: #f8fafc; margin: 0; padding: 0; }
+    .container { max-width: 640px; margin: 0 auto; padding: 24px; }
+    .card { background: #ffffff; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); }
+    .brand { font-size: 24px; font-weight: 700; color: #0f6fff; margin-bottom: 18px; }
+    .title { font-size: 22px; font-weight: 700; margin: 0 0 12px; }
+    .meta { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin: 20px 0; }
+    .meta p { margin: 6px 0; }
+    .footer { font-size: 12px; color: #64748b; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="brand">CampusMart</div>
+      <h1 class="title">Delivery completed</h1>
+      <p>Hi ${safeName},</p>
+      <p>Your ${roleLabel} order for <strong>${orderTitle}</strong> has now been marked as delivered.</p>
+      <div class="meta">
+        <p><strong>Meeting point:</strong> ${meetingPoint}</p>
+        <p><strong>Status:</strong> ${statusLabel}</p>
+      </div>
+      <p>You can open the order thread in Campus Mart to review the conversation history.</p>
+      <div class="footer">This message was sent automatically from CampusMart.</div>
+    </div>
+  </div>
+</body>
+</html>`,
+  };
+};
+
+const sendOrderDeliveryEmails = async (orderId) => {
+  const populatedOrder = await Order.findById(orderId)
+    .populate('buyerId', 'fullName email')
+    .populate('sellerId', 'fullName email')
+    .populate('items.productId', 'title')
+    .lean();
+
+  if (!populatedOrder) {
+    return;
+  }
+
+  const transport = createSmtpTransport();
+  if (typeof transport.verify === 'function') {
+    await transport.verify();
+  }
+
+  const from = resolveSmtpFrom();
+  const recipients = [
+    {
+      email: populatedOrder.buyerId?.email,
+      name: populatedOrder.buyerId?.fullName,
+      roleLabel: 'buyer',
+    },
+    {
+      email: populatedOrder.sellerId?.email,
+      name: populatedOrder.sellerId?.fullName,
+      roleLabel: 'seller',
+    },
+  ].filter((recipient) => recipient.email);
+
+  const messages = recipients.map((recipient) => {
+    const email = buildDeliveryEmail({
+      recipientName: recipient.name,
+      order: populatedOrder,
+      roleLabel: recipient.roleLabel,
+    });
+
+    return {
+      from,
+      to: recipient.email,
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
+    };
+  });
+
+  await Promise.all(messages.map((message) => transport.sendMail(message)));
+};
 
 const LEGACY_STATUS_MAP = Object.freeze({
   pending: ORDER_STATUS.PENDING,
@@ -621,6 +806,41 @@ const updateOrderStatus = async (req, res, next) => {
     let trustScoreUpdate;
     if (normalizedNextStatus === ORDER_STATUS.DELIVERED) {
       trustScoreUpdate = await applySuccessfulDeliveryTrustScore(order);
+
+      try {
+        const itemProductIds = (order.items || []).map((item) => item?.productId).filter(Boolean);
+
+        if (itemProductIds.length > 0) {
+          await Product.updateMany(
+            { _id: { $in: itemProductIds }, stock: { $lte: 0 } },
+            { $set: { availabilityStatus: 'Sold' } },
+          );
+        }
+      } catch {
+        // Product sold-state sync is best-effort and should not block delivery completion.
+      }
+
+      try {
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const conversations = await Conversation.find({ orderId: order._id }).select('_id');
+        const conversationIds = conversations.map((conversation) => conversation._id);
+
+        if (conversationIds.length > 0) {
+          await Conversation.updateMany(
+            { _id: { $in: conversationIds } },
+            { $set: { expiresAt } },
+          );
+
+          await Message.updateMany(
+            { conversationId: { $in: conversationIds } },
+            { $set: { expiresAt } },
+          );
+        }
+
+        await sendOrderDeliveryEmails(order._id);
+      } catch {
+        // Chat cleanup scheduling should not block order delivery completion.
+      }
     }
 
     let monitoring;

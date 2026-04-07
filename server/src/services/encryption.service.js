@@ -1,7 +1,16 @@
 const crypto = require("crypto");
 
-const key = Buffer.from(process.env.MESSAGE_ENCRYPTION_KEY, "base64");
-// Must be 32 bytes for AES-256
+const keyFromEnv = process.env.MESSAGE_ENCRYPTION_KEY;
+
+if (!keyFromEnv) {
+  throw new Error("Missing MESSAGE_ENCRYPTION_KEY. Set a base64-encoded 32-byte key in your environment.");
+}
+
+const key = Buffer.from(keyFromEnv, "base64");
+
+if (key.length !== 32) {
+  throw new Error("Invalid MESSAGE_ENCRYPTION_KEY. Expected a base64-encoded 32-byte key for AES-256-GCM.");
+}
 
 const encryptText = (plainText) => {
   const iv = crypto.randomBytes(12);
@@ -22,4 +31,21 @@ const encryptText = (plainText) => {
   };
 };
 
-module.exports = { encryptText };
+const decryptText = ({ ciphertext, iv, authTag }) => {
+  const decipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    key,
+    Buffer.from(iv, "base64"),
+  );
+
+  decipher.setAuthTag(Buffer.from(authTag, "base64"));
+
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(ciphertext, "base64")),
+    decipher.final(),
+  ]);
+
+  return decrypted.toString("utf8");
+};
+
+module.exports = { encryptText, decryptText };

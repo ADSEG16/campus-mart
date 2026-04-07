@@ -88,9 +88,49 @@ export const deleteCurrentUserAccount = async ({ token, confirmation = "DEACTIVA
   });
 };
 
+export const uploadCurrentUserAvatar = async ({ token, file }) => {
+  const formData = new FormData();
+  formData.append("profileImage", file);
+
+  const response = await apiRequest("/users/avatar", {
+    method: "POST",
+    token,
+    body: formData,
+  });
+
+  return response?.data || {};
+};
+
+export const replaceCurrentUserAvatar = async ({ token, file }) => {
+  const formData = new FormData();
+  formData.append("profileImage", file);
+
+  const response = await apiRequest("/users/avatar", {
+    method: "PATCH",
+    token,
+    body: formData,
+  });
+
+  return response?.data || {};
+};
+
 export const getPublicUserProfile = async ({ userId }) => {
   const response = await apiRequest(`/users/public/${encodeURIComponent(userId)}`, {
     method: "GET",
+  });
+
+  return response?.data || null;
+};
+
+export const reportUser = async ({ token, userId, reason, orderId, conversationId }) => {
+  const response = await apiRequest(`/users/${encodeURIComponent(userId)}/report`, {
+    method: "POST",
+    token,
+    body: {
+      reason,
+      orderId,
+      conversationId,
+    },
   });
 
   return response?.data || null;

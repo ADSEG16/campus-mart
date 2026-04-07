@@ -5,7 +5,8 @@ const AuditEvent = require('../models/auditEvent.model');
 const mongoose = require('mongoose');
 const { requireUser } = require('../middleware/auth.middleware');
 const { profileImageUpload } = require('../config/multer');
-const { uploadSingleProfileImage } = require('../services/product.service');
+const { uploadSingleProfileImage, deleteManyFromCloudinary } = require('../services/product.service');
+const { updateUserTrustScore } = require('../services/trustScore.service');
 const { sendSuccess, sendError } = require('../utils/response');
 
 const router = express.Router();
@@ -39,6 +40,7 @@ const uploadAvatar = async (req, res, next) => {
         const uploaded = await uploadSingleProfileImage(req.file);
 
         user.profileImageUrl = uploaded.secureUrl;
+        user.profileImagePublicId = uploaded.publicId;
         await user.save();
 
         return sendSuccess(res, {
@@ -71,9 +73,13 @@ const replaceAvatar = async (req, res, next) => {
             });
         }
 
+        const previousPublicId = user.profileImagePublicId;
         const uploaded = await uploadSingleProfileImage(req.file);
         user.profileImageUrl = uploaded.secureUrl;
+        user.profileImagePublicId = uploaded.publicId;
         await user.save();
+
+        await deleteManyFromCloudinary([previousPublicId]);
 
         return sendSuccess(res, {
             message: 'Avatar replaced successfully',
@@ -98,8 +104,12 @@ const deleteAvatar = async (req, res, next) => {
             return sendError(res, { statusCode: 400, message: 'No profile image to delete' });
         }
 
+        const previousPublicId = user.profileImagePublicId;
         user.profileImageUrl = null;
+        user.profileImagePublicId = null;
         await user.save();
+
+        await deleteManyFromCloudinary([previousPublicId]);
 
         return sendSuccess(res, {
             message: 'Avatar deleted successfully',
@@ -508,6 +518,68 @@ const getCurrentUserTrustAnalytics = async (req, res, next) => {
     }
 };
 
+const reportUser = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        const { reason, orderId, conversationId } = req.body || {};
+
+        if (!mongoose.Types.ObjectId.isValid(String(userId || ''))) {
+            return sendError(res, { statusCode: 400, message: 'Invalid userId' });
+        }
+
+        if (!reason || typeof reason !== 'string' || !reason.trim()) {
+            return sendError(res, { statusCode: 400, message: 'Report reason is required' });
+        }
+
+        if (String(userId) === String(req.user._id)) {
+            return sendError(res, { statusCode: 400, message: 'You cannot report yourself' });
+        }
+
+        const targetUser = await User.findById(userId);
+        if (!targetUser) {
+            return sendError(res, { statusCode: 404, message: 'User not found' });
+        }
+
+        targetUser.flagged = true;
+        await targetUser.save();
+
+        await updateUserTrustScore(targetUser._id, -5, {
+            actorId: req.user._id,
+            reason: 'user_reported',
+            context: {
+                reason: reason.trim(),
+                orderId: orderId || null,
+                conversationId: conversationId || null,
+            },
+        });
+
+        await AuditEvent.create({
+            eventType: 'moderation.user_reported',
+            actorId: req.user._id,
+            entityType: 'user',
+            entityId: targetUser._id,
+            payload: {
+                reason: reason.trim(),
+                orderId: orderId || null,
+                conversationId: conversationId || null,
+                reportedUserId: String(targetUser._id),
+                reporterId: String(req.user._id),
+            },
+        });
+
+        return sendSuccess(res, {
+            statusCode: 201,
+            message: 'User report submitted successfully',
+            data: {
+                userId: String(targetUser._id),
+                flagged: true,
+            },
+        });
+    } catch (error) {
+        return next(error);
+    }
+};
+
 router.post('/avatar', requireUser, profileImageUpload.single('profileImage'), uploadAvatar);
 router.patch('/avatar', requireUser, profileImageUpload.single('profileImage'), replaceAvatar);
 router.delete('/avatar', requireUser, deleteAvatar);
@@ -522,6 +594,7 @@ router.post('/watchlist', requireUser, addCurrentUserWatchlistItem);
 router.delete('/watchlist/:productId', requireUser, removeCurrentUserWatchlistItem);
 router.delete('/watchlist', requireUser, clearCurrentUserWatchlist);
 router.get('/trust-analytics', requireUser, getCurrentUserTrustAnalytics);
+router.post('/:userId/report', requireUser, reportUser);
 router.delete('/profile', requireUser, deleteCurrentUserAccount);
 
 module.exports = router;
