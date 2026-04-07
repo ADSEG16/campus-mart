@@ -24,6 +24,10 @@ const CampusNavbar = () => {
     }
   }, []);
   const [currentUser, setCurrentUser] = useState(initialUser);
+  const [isMenuReady, setIsMenuReady] = useState(() => {
+    if (!getStoredAuthToken()) return true;
+    return Boolean(initialUser && Object.keys(initialUser).length > 0);
+  });
   const currentUserId = currentUser?._id || "guest";
   const token = getStoredAuthToken();
   const isAuthenticatedUser = Boolean(token);
@@ -127,10 +131,18 @@ const CampusNavbar = () => {
         }
       } catch {
         // Keep cached user data if refresh fails.
+      } finally {
+        setIsMenuReady(true);
       }
     };
 
     syncCurrentUser();
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setIsMenuReady(true);
+    }
   }, [token]);
 
   useEffect(() => {
@@ -319,7 +331,7 @@ const CampusNavbar = () => {
   return (
     <nav
       className={`sticky top-0 z-40 w-full border-b border-gray-200 bg-white shadow-sm transition-transform duration-300 ${
-        isMobileMenuOpen || isNavVisible ? "translate-y-0" : "-translate-y-full"
+        isMobileMenuOpen ? "" : isNavVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
       <div className="max-w-375 mx-auto px-3 sm:px-4 lg:px-4 py-3 flex items-center justify-between gap-4">
@@ -421,7 +433,11 @@ const CampusNavbar = () => {
             )}
 
             <div className="space-y-2">
-              {isAdmin ? (
+              {!isMenuReady ? (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                  Loading menu...
+                </div>
+              ) : isAdmin ? (
                 <>
                   <NavLink to="/safety" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
                     Safety
@@ -430,7 +446,7 @@ const CampusNavbar = () => {
                     Admin
                   </NavLink>
                 </>
-              ) : isAuthenticatedUser ? (
+              ) : isVerifiedUser ? (
                 <>
                   <NavLink to="/marketplace" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 text-sm font-medium text-gray-700">
                     Marketplace

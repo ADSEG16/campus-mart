@@ -70,17 +70,17 @@ export default function Profile() {
     return (
 			<div>
 				<Navbar />
-        <div className="container-main flex flex-col items-center justify-center min-h-screen px-4">
+	        <div className="container-main flex flex-col items-center justify-center min-h-screen px-3 sm:px-4 py-6 sm:py-8">
             {/* Progress Bar */}
             <div className="w-full bg-white mb-2">
-                <div className="max-w-2xl mx-auto px-4 py-6">
+                <div className="max-w-2xl mx-auto px-1 sm:px-4 py-4 sm:py-6">
                     <ProgressBar currentStep={3} />
                 </div>
             </div>
             
-            <div className="border border-gray-300 rounded-2xl p-8 w-2xl max-w-3xl shadow-lg">
+            <div className="w-full max-w-3xl border border-gray-300 rounded-xl sm:rounded-2xl p-4 sm:p-8 shadow-lg bg-white">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Step 3: Profile Setup</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Step 3: Profile Setup</h2>
                     <p className="text-gray-600 mb-6">Let the community know a little bit about you.</p>
                 </div>
 
@@ -218,8 +218,8 @@ export default function Profile() {
                 </div>
             </div>
         </div>
-				<div>
-                <div className="mt-8 flex flex-row justify-center items-center gap-6 text-gray-500 text-sm">
+                <div>
+                    <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-6 text-gray-500 text-sm px-4 text-center sm:text-left">
                     <p className="flex items-center">
                         <span className="mr-1 text-[#137FEC]">✓</span> 
                         Verified Student

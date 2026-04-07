@@ -3,6 +3,7 @@ const Order = require("../models/order.model");
 
 /**
  * Get existing conversation between 2 users for a specific product, or create one.
+ * This enforces one room per buyer-seller-product pair.
  */
 async function getOrCreateConversation(userId1, userId2, productId = null, orderId = null) {
   // Ensure different users
@@ -28,10 +29,6 @@ async function getOrCreateConversation(userId1, userId2, productId = null, order
     productId: resolvedProductId,
   };
 
-  if (resolvedOrderId) {
-    baseFilter.orderId = resolvedOrderId;
-  }
-
   let conversation = await Conversation.findOne(baseFilter);
 
   if (!conversation) {
@@ -41,7 +38,8 @@ async function getOrCreateConversation(userId1, userId2, productId = null, order
       productId: resolvedProductId,
       orderId: resolvedOrderId || null,
     });
-  } else if (resolvedOrderId && !conversation.orderId) {
+  } else if (resolvedOrderId && String(conversation.orderId || "") !== String(resolvedOrderId)) {
+    // Keep the room linked to the latest order context for this product thread.
     conversation.orderId = resolvedOrderId;
     await conversation.save();
   }
