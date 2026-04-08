@@ -28,6 +28,15 @@ const parseBooleanEnv = (value, fallback = false) => {
 	return fallback;
 };
 
+const parsePositiveIntEnv = (value, fallback) => {
+	const parsed = Number.parseInt(value, 10);
+	if (Number.isNaN(parsed) || parsed <= 0) {
+		return fallback;
+	}
+
+	return parsed;
+};
+
 const isSchoolEmail = (email) => {
 	if (!email || typeof email !== 'string') {
 		return false;
@@ -103,12 +112,21 @@ const createSmtpTransport = () => {
 	const secure = parseBooleanEnv(process.env.SMTP_SECURE, port === 465);
 	const rejectUnauthorized = parseBooleanEnv(process.env.SMTP_REJECT_UNAUTHORIZED, true);
 	const requireTLS = parseBooleanEnv(process.env.SMTP_REQUIRE_TLS, port === 587);
+	const requestedIpFamily = Number.parseInt(process.env.SMTP_IP_FAMILY, 10);
+	const family = requestedIpFamily === 6 ? 6 : 4;
+	const connectionTimeout = parsePositiveIntEnv(process.env.SMTP_CONNECTION_TIMEOUT_MS, 15000);
+	const greetingTimeout = parsePositiveIntEnv(process.env.SMTP_GREETING_TIMEOUT_MS, 10000);
+	const socketTimeout = parsePositiveIntEnv(process.env.SMTP_SOCKET_TIMEOUT_MS, 20000);
 
 	return nodemailer.createTransport({
 		host,
 		port,
 		secure,
 		requireTLS,
+		family,
+		connectionTimeout,
+		greetingTimeout,
+		socketTimeout,
 		auth: {
 			user,
 			pass,

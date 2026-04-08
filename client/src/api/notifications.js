@@ -5,7 +5,7 @@ export const MESSAGE_NOTIFICATION_STORAGE_KEY = "campusmart.messageNotifications
 const readStoredMessageNotifications = () => {
   try {
     const raw = localStorage.getItem(MESSAGE_NOTIFICATION_STORAGE_KEY);
-    if (!raw) return {};
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -26,7 +26,8 @@ const relativeFromDate = (value) => {
 };
 
 export const fetchNotificationFeed = async ({ token, currentUserId }) => {
-  const orders = await listOrders({ token });
+  const rawOrders = await listOrders({ token });
+  const orders = Array.isArray(rawOrders) ? rawOrders : [];
   const messageNotifications = readStoredMessageNotifications().map((item, index) => {
     const createdAt = item?.createdAt || new Date().toISOString();
     return {
