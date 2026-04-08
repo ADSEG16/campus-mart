@@ -40,6 +40,13 @@ export const verifyEmailToken = async (token) => {
   });
 };
 
+export const resendVerificationEmail = async (email) => {
+  return apiRequest("/auth/resend-verification-email", {
+    method: "POST",
+    body: { email },
+  });
+};
+
 export const uploadStudentId = async ({ token, file }) => {
   const formData = new FormData();
   formData.append("studentId", file);

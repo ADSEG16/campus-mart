@@ -170,8 +170,9 @@ const resolveSmtpFrom = () => {
 
 const sendEmailVerificationMessage = async ({ recipientEmail, recipientFullName, token }) => {
 	const transport = createSmtpTransport();
+	const shouldVerifyConnection = parseBooleanEnv(process.env.SMTP_VERIFY_CONNECTION, false);
 
-	if (typeof transport.verify === 'function') {
+	if (shouldVerifyConnection && typeof transport.verify === 'function') {
 		try {
 			await transport.verify();
 		} catch (error) {
@@ -291,8 +292,9 @@ Questions? We're here to help!`,
 
 const sendPasswordResetEmail = async ({ recipientEmail, token }) => {
 	const transport = createSmtpTransport();
+	const shouldVerifyConnection = parseBooleanEnv(process.env.SMTP_VERIFY_CONNECTION, false);
 
-	if (typeof transport.verify === 'function') {
+	if (shouldVerifyConnection && typeof transport.verify === 'function') {
 		try {
 			await transport.verify();
 		} catch (error) {
@@ -480,11 +482,21 @@ const signup = async (req, res, next) => {
 			});
 		}
 
-		const emailDelivery = await sendEmailVerificationMessage({
-			recipientEmail: user.email,
-			recipientFullName: user.fullName,
-			token: verificationToken,
-		});
+		let emailDelivery = null;
+		let emailDeliveryFailed = false;
+		let emailDeliveryError = null;
+
+		try {
+			emailDelivery = await sendEmailVerificationMessage({
+				recipientEmail: user.email,
+				recipientFullName: user.fullName,
+				token: verificationToken,
+			});
+		} catch (mailError) {
+			emailDeliveryFailed = true;
+			emailDeliveryError = mailError?.message || 'Verification email could not be delivered';
+			console.error('Verification email delivery failed during signup:', mailError?.message || mailError);
+		}
 
 		const token = signAuthToken(user._id);
 
@@ -494,7 +506,14 @@ const signup = async (req, res, next) => {
 			data: serializeUser(user),
 			extras: {
 				token,
-				...(process.env.NODE_ENV !== 'production' && { emailDelivery }),
+				emailVerificationEmailSent: !emailDeliveryFailed,
+				...(emailDeliveryFailed && {
+					emailDeliveryError: 'Verification email could not be sent right now. Please use resend verification from login.',
+				}),
+				...(process.env.NODE_ENV !== 'production' && {
+					emailDelivery,
+					...(emailDeliveryFailed && { emailDeliveryFailureReason: emailDeliveryError }),
+				}),
 			},
 		});
 	} catch (error) {
@@ -579,6 +598,61 @@ const verifyEmail = async (req, res, next) => {
 			message: 'Email verified successfully',
 			data: serializeUser(user),
 		});
+	} catch (error) {
+		return next(error);
+	}
+};
+
+const resendVerificationEmail = async (req, res, next) => {
+	try {
+		const { email } = req.body;
+
+		if (!email || typeof email !== 'string') {
+			return sendError(res, { statusCode: 400, message: 'Email is required' });
+		}
+
+		if (!isSchoolEmail(email)) {
+			return sendError(res, { statusCode: 400, message: 'Email must end with @st.ug.edu.gh' });
+		}
+
+		const normalizedEmail = email.toLowerCase();
+		const user = await User.findOne({ email: normalizedEmail });
+
+		if (!user || user.emailVerified) {
+			return sendSuccess(res, {
+				message: 'If an unverified account exists with that email, a verification link has been sent.',
+			});
+		}
+
+		const { token: verificationToken, tokenHash, expiresAt } = createEmailVerificationToken();
+		user.emailVerificationTokenHash = tokenHash;
+		user.emailVerificationTokenExpiresAt = expiresAt;
+		await user.save();
+
+		try {
+			await sendEmailVerificationMessage({
+				recipientEmail: user.email,
+				recipientFullName: user.fullName,
+				token: verificationToken,
+			});
+
+			return sendSuccess(res, {
+				message: 'Verification email sent. Please check your inbox.',
+				extras: {
+					emailVerificationEmailSent: true,
+				},
+			});
+		} catch (mailError) {
+			console.error('Verification email resend failed:', mailError?.message || mailError);
+
+			return sendSuccess(res, {
+				statusCode: 202,
+				message: 'We could not send the verification email right now. Please try again shortly.',
+				extras: {
+					emailVerificationEmailSent: false,
+				},
+			});
+		}
 	} catch (error) {
 		return next(error);
 	}
@@ -783,6 +857,7 @@ module.exports = {
 	signup,
 	login,
 	verifyEmail,
+	resendVerificationEmail,
 	getMe,
 	uploadStudentId,
 	uploadProfileImage,
