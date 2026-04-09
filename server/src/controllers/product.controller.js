@@ -35,6 +35,17 @@ const parseTrustScore = (value) => {
   return Math.min(Math.max(parsed, 0), 100);
 };
 
+const hasAdminVerification = (user) => {
+  if (!user) {
+    return false;
+  }
+
+  return Boolean(
+    user.isVerified ||
+    String(user.verificationStatus || '').toLowerCase() === 'verified'
+  );
+};
+
 // Create a new product
 const createProduct = async (req, res, next) => {
   try {
@@ -46,6 +57,20 @@ const createProduct = async (req, res, next) => {
 
     if (!Array.isArray(req.files) || req.files.length === 0) {
       return sendError(res, { statusCode: 400, message: 'At least one product image is required' });
+    }
+
+    if (!req.user.emailVerified) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Verify your email before listing products',
+      });
+    }
+
+    if (!hasAdminVerification(req.user)) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Your account must be approved by admin before you can list products',
+      });
     }
 
     const uploadedImages = await uploadManyImages(req.files);

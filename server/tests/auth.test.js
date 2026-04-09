@@ -36,7 +36,6 @@ describe('Auth Routes', () => {
   describe('POST /api/auth/signup', () => {
     it('should register a new user', async () => {
       User.findOne.mockResolvedValue(null);
-      const save = jest.fn().mockResolvedValue(undefined);
       User.create.mockResolvedValue({
         _id: 'user-1',
         fullName: 'Test User',
@@ -49,7 +48,6 @@ describe('Auth Routes', () => {
         profileImageUrl: null,
         bio: '',
         flagged: false,
-        save,
       });
 
       const response = await request(app).post('/api/auth/signup').send({
@@ -65,13 +63,10 @@ describe('Auth Routes', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.token).toEqual(expect.any(String));
       expect(response.body.data.email).toBe('test@st.ug.edu.gh');
-      expect(save).toHaveBeenCalledTimes(1);
-      expect(mockSendMail).toHaveBeenCalledTimes(1);
       expect(User.create).toHaveBeenCalledTimes(1);
     });
 
     it('should set verification token fields when signing up', async () => {
-      const save = jest.fn().mockResolvedValue(undefined);
       User.findOne.mockResolvedValue(null);
       User.create.mockResolvedValue({
         _id: 'user-2',
@@ -83,7 +78,6 @@ describe('Auth Routes', () => {
         verificationStatus: 'pending',
         emailVerificationTokenHash: null,
         emailVerificationTokenExpiresAt: null,
-        save,
       });
 
       const response = await request(app).post('/api/auth/signup').send({
@@ -96,8 +90,6 @@ describe('Auth Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      expect(save).toHaveBeenCalledTimes(1);
-      expect(mockSendMail).toHaveBeenCalled();
       expect(User.create).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'test2@st.ug.edu.gh',
@@ -136,15 +128,7 @@ describe('Auth Routes', () => {
     });
 
     it('should allow department values with numbers', async () => {
-      mockSendMail.mockResolvedValueOnce({
-        messageId: 'msg-3',
-        accepted: ['test3@st.ug.edu.gh'],
-        rejected: [],
-        response: '250 2.0.0 OK',
-      });
-
       User.findOne.mockResolvedValue(null);
-      const save = jest.fn().mockResolvedValue(undefined);
       User.create.mockResolvedValue({
         _id: 'user-3',
         fullName: 'Test User Three',
@@ -153,7 +137,6 @@ describe('Auth Routes', () => {
         graduationYear: 2026,
         role: 'user',
         verificationStatus: 'pending',
-        save,
       });
 
       const response = await request(app).post('/api/auth/signup').send({
@@ -173,47 +156,32 @@ describe('Auth Routes', () => {
       );
     });
 
-    it('should use SMTP user fallback sender when SMTP_FROM is blank', async () => {
-      const previousSmtpFrom = process.env.SMTP_FROM;
-      process.env.SMTP_FROM = '';
-
-      mockSendMail.mockResolvedValueOnce({
-        messageId: 'msg-4',
-        accepted: ['test4@st.ug.edu.gh'],
-        rejected: [],
-        response: '250 2.0.0 OK',
-      });
-
-      User.findOne.mockResolvedValue(null);
-      const save = jest.fn().mockResolvedValue(undefined);
-      User.create.mockResolvedValue({
-        _id: 'user-4',
-        fullName: 'Test User Four',
-        department: 'Engineering',
-        email: 'test4@st.ug.edu.gh',
-        graduationYear: 2026,
-        role: 'user',
-        verificationStatus: 'pending',
-        save,
-      });
-
+    it('should reject mismatched passwords', async () => {
       const response = await request(app).post('/api/auth/signup').send({
-        fullName: 'Test User Four',
-        department: 'Engineering',
-        email: 'test4@st.ug.edu.gh',
+        fullName: 'Test User',
+        department: 'Computer Science',
+        email: 'test@st.ug.edu.gh',
+        graduationYear: 2026,
+        password: 'password123',
+        confirmPassword: 'different123',
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body.message).toBe('Passwords do not match');
+    });
+
+    it('should reject fullName with numbers', async () => {
+      const response = await request(app).post('/api/auth/signup').send({
+        fullName: 'Test User123',
+        department: 'Computer Science',
+        email: 'test@st.ug.edu.gh',
         graduationYear: 2026,
         password: 'password123',
         confirmPassword: 'password123',
       });
 
-      expect(response.statusCode).toBe(201);
-      expect(mockSendMail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          from: `CampusMart <${process.env.SMTP_USER}>`,
-        })
-      );
-
-      process.env.SMTP_FROM = previousSmtpFrom;
+      expect(response.statusCode).toBe(400);
+      expect(response.body.message).toBe('fullName must contain text only (no numbers)');
     });
   });
 
@@ -283,9 +251,9 @@ describe('Auth Routes', () => {
   });
 
   describe('Email Verification', () => {
-    it('should verify email when token is valid', async () => {
+    it('should verify email for authenticated user', async () => {
       const save = jest.fn().mockResolvedValue(undefined);
-      User.findOne.mockResolvedValue({
+      User.findById.mockResolvedValue({
         _id: 'user-verify-1',
         email: 'verify@st.ug.edu.gh',
         emailVerified: false,
@@ -295,23 +263,36 @@ describe('Auth Routes', () => {
       });
 
       const response = await request(app)
-        .get('/api/auth/verify-email')
-        .query({ token: 'plain-token' });
+        .post('/api/auth/verify-email')
+        .set('x-user-id', 'user-verify-1');
 
       expect(response.statusCode).toBe(200);
       expect(response.body.message).toBe('Email verified successfully');
       expect(save).toHaveBeenCalledTimes(1);
     });
 
-    it('should reject invalid or expired verification token', async () => {
-      User.findOne.mockResolvedValue(null);
+    it('should return success if email already verified', async () => {
+      User.findById.mockResolvedValue({
+        _id: 'user-verify-2',
+        email: 'verify2@st.ug.edu.gh',
+        emailVerified: true,
+        role: 'user',
+      });
 
       const response = await request(app)
-        .get('/api/auth/verify-email')
-        .query({ token: 'invalid-token' });
+        .post('/api/auth/verify-email')
+        .set('x-user-id', 'user-verify-2');
 
-      expect(response.statusCode).toBe(400);
-      expect(response.body.message).toBe('Verification token is invalid or expired');
+      expect(response.statusCode).toBe(200);
+      expect(response.body.message).toBe('Email is already verified');
+    });
+
+    it('should reject unauthenticated requests', async () => {
+      const response = await request(app)
+        .post('/api/auth/verify-email');
+
+      expect(response.statusCode).toBe(401);
+      expect(response.body.message).toBe('Authentication required');
     });
   });
 

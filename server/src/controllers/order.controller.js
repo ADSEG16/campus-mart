@@ -222,6 +222,17 @@ const canTransition = (currentStatus, nextStatus) => getAllowedNextStatuses(curr
 
 const SELLER_RESPONSE_WINDOW_HOURS = 48;
 
+const hasAdminVerification = (user) => {
+  if (!user) {
+    return false;
+  }
+
+  return Boolean(
+    user.isVerified ||
+    String(user.verificationStatus || '').toLowerCase() === 'verified'
+  );
+};
+
 const createOrderReview = async (req, res, next) => {
   try {
     const { orderId } = req.params;
@@ -426,6 +437,20 @@ const reportReviewAbuse = async (req, res, next) => {
 const createOrder = async (req, res, next) => {
   try {
     const { items } = req.body;
+
+    if (!req.user?.emailVerified) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Verify your email before placing an order',
+      });
+    }
+
+    if (!hasAdminVerification(req.user)) {
+      return sendError(res, {
+        statusCode: 403,
+        message: 'Your account must be approved by admin before you can place orders',
+      });
+    }
 
     if (!Array.isArray(items) || items.length === 0) {
       return sendError(res, { statusCode: 400, message: 'At least one order item is required' });

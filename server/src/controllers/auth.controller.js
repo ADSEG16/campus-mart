@@ -7,9 +7,9 @@ const { sendSuccess, sendError } = require('../utils/response');
 
 const JWT_EXPIRES_IN = '24h';
 const SCHOOL_EMAIL_DOMAIN = '@st.ug.edu.gh';
-const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TOKEN_TTL_MS = 1 * 60 * 60 * 1000; // 1 hour
 const DEFAULT_SMTP_FROM = 'CampusMart <no-reply@st.ug.edu.gh>';
+const BREVO_API_ENDPOINT = 'https://api.brevo.com/v3/smtp/email';
 
 const parseBooleanEnv = (value, fallback = false) => {
 	if (typeof value !== 'string') {
@@ -37,6 +37,15 @@ const parsePositiveIntEnv = (value, fallback) => {
 	return parsed;
 };
 
+const resolveEmailDeliveryProvider = () => {
+	const configured = String(process.env.EMAIL_DELIVERY_PROVIDER || 'smtp').trim().toLowerCase();
+	if (configured === 'brevo' || configured === 'brevo_api') {
+		return 'brevo';
+	}
+
+	return 'smtp';
+};
+
 const isSchoolEmail = (email) => {
 	if (!email || typeof email !== 'string') {
 		return false;
@@ -58,20 +67,6 @@ const serializeUser = (userDoc) => {
 	}
 
 	return userDoc;
-};
-
-const getEmailVerificationTokenHash = token => {
-	return crypto.createHash('sha256').update(token).digest('hex');
-};
-
-const createEmailVerificationToken = () => {
-	const token = crypto.randomBytes(32).toString('hex');
-
-	return {
-		token,
-		tokenHash: getEmailVerificationTokenHash(token),
-		expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TOKEN_TTL_MS),
-	};
 };
 
 const getPasswordResetTokenHash = token => {
@@ -168,7 +163,77 @@ const resolveSmtpFrom = () => {
 	return displayName ? `${displayName} <${email}>` : `CampusMart <${email}>`;
 };
 
-const sendEmailVerificationMessage = async ({ recipientEmail, recipientFullName, token }) => {
+const sendViaBrevoApi = async ({ recipientEmail, subject, text, html }) => {
+	if (typeof fetch !== 'function') {
+		const fetchError = new Error('Global fetch is unavailable. Use Node.js 18+ or configure SMTP provider.');
+		fetchError.statusCode = 500;
+		throw fetchError;
+	}
+
+	const apiKey = String(process.env.BREVO_API_KEY || '').trim();
+	if (!apiKey) {
+		const keyError = new Error('Brevo API is not configured. Set BREVO_API_KEY.');
+		keyError.statusCode = 500;
+		throw keyError;
+	}
+
+	const senderEmail = String(process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || '').trim();
+	if (!senderEmail) {
+		const senderError = new Error('Brevo sender is not configured. Set BREVO_SENDER_EMAIL.');
+		senderError.statusCode = 500;
+		throw senderError;
+	}
+
+	const senderName = String(process.env.BREVO_SENDER_NAME || 'CampusMart').trim() || 'CampusMart';
+
+	const response = await fetch(BREVO_API_ENDPOINT, {
+		method: 'POST',
+		headers: {
+			accept: 'application/json',
+			'content-type': 'application/json',
+			'api-key': apiKey,
+		},
+		body: JSON.stringify({
+			sender: {
+				name: senderName,
+				email: senderEmail,
+			},
+			to: [{ email: recipientEmail }],
+			subject,
+			htmlContent: html,
+			textContent: text,
+		}),
+	});
+
+	if (!response.ok) {
+		const bodyText = await response.text();
+		const apiError = new Error(`Brevo API request failed (${response.status}): ${bodyText}`);
+		apiError.statusCode = 500;
+		throw apiError;
+	}
+
+	let payload = null;
+	try {
+		payload = await response.json();
+	} catch {
+		payload = null;
+	}
+
+	return {
+		messageId: payload?.messageId || null,
+		accepted: [recipientEmail],
+		rejected: [],
+		response: `${response.status} ${response.statusText}`,
+	};
+};
+
+const sendTransactionalEmail = async ({ recipientEmail, subject, text, html }) => {
+	const provider = resolveEmailDeliveryProvider();
+
+	if (provider === 'brevo') {
+		return sendViaBrevoApi({ recipientEmail, subject, text, html });
+	}
+
 	const transport = createSmtpTransport();
 	const shouldVerifyConnection = parseBooleanEnv(process.env.SMTP_VERIFY_CONNECTION, false);
 
@@ -182,135 +247,22 @@ const sendEmailVerificationMessage = async ({ recipientEmail, recipientFullName,
 		}
 	}
 
-	const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5000';
-	const verifyUrl = `${baseUrl.replace(/\/$/, '')}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
-	const safeName = typeof recipientFullName === 'string' && recipientFullName.trim()
-		? recipientFullName.trim()
-		: 'there';
-
-	try {
-		const info = await transport.sendMail({
-			from: resolveSmtpFrom(),
-			to: recipientEmail,
-			subject: 'Welcome to Campus Mart! Confirm your email',
-			text: `Hi ${safeName}!
-
-Let's get you started by verifying your email. Just click the link below to confirm your account:
-${verifyUrl}
-
-This link expires in 24 hours.
-
-Questions? We're here to help!`,
-			html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; border-radius: 8px; }
-    .header { text-align: center; margin-bottom: 30px; }
-    .logo { font-size: 24px; font-weight: bold; color: #137FEC; margin-bottom: 10px; }
-    .content { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .greeting { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 15px; }
-    .message { color: #555; margin-bottom: 20px; }
-    .cta-button { display: inline-block; background-color: #137FEC; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
-    .cta-button:hover { background-color: #0d5bb8; }
-    .link-fallback { color: #137FEC; word-break: break-all; }
-    .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
-    .expiry { background-color: #fffbeb; padding: 15px; border-left: 4px solid #f59e0b; margin: 20px 0; color: #92400e; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-			<div class="logo">CampusMart</div>
-    </div>
-    
-    <div class="content">
-			<p class="greeting">Hi ${safeName},</p>
-      
-      <p class="message">
-        Let's get you started by verifying your email. Just click the button below to confirm your account:
-      </p>
-      
-      <center>
-        <a href="${verifyUrl}" class="cta-button">Verify My Email</a>
-      </center>
-      
-      <p class="message" style="text-align: center; color: #999; font-size: 14px;">
-        Or copy and paste this link in your browser:
-      </p>
-      <p style="text-align: center; color: #137FEC; word-break: break-all; font-size: 12px;">
-        ${verifyUrl}
-      </p>
-      
-      <div class="expiry">
-        ⏱️ <strong>This link expires in 24 hours.</strong> If you need a new verification link, you can request one from the login page.
-      </div>
-      
-      <p class="message">
-        Questions? We're here to help! If you didn't create this account, you can ignore this email.
-      </p>
-    </div>
-    
-    <div class="footer">
-      <p>© 2026 Campus Mart. All rights reserved.</p>
-    </div>
-  </div>
-</body>
-</html>
-`,
-		});
-
-		const acceptedRecipients = Array.isArray(info?.accepted)
-			? info.accepted.map(value => String(value).toLowerCase())
-			: [];
-		const recipientAccepted = acceptedRecipients.includes(String(recipientEmail).toLowerCase());
-
-		if (!recipientAccepted) {
-			const rejectedRecipients = Array.isArray(info?.rejected)
-				? info.rejected.map(value => String(value)).join(', ')
-				: 'unknown';
-			const partialFailure = new Error(`SMTP did not accept recipient ${recipientEmail}. Rejected: ${rejectedRecipients}`);
-			partialFailure.statusCode = 500;
-			throw partialFailure;
-		}
-
-		return {
-			messageId: info?.messageId || null,
-			accepted: Array.isArray(info?.accepted) ? info.accepted : [],
-			rejected: Array.isArray(info?.rejected) ? info.rejected : [],
-			response: info?.response || null,
-		};
-	} catch (error) {
-		const sendError = new Error(`Failed to send verification email: ${error.message}`);
-		sendError.statusCode = 500;
-		throw sendError;
-	}
+	return transport.sendMail({
+		from: resolveSmtpFrom(),
+		to: recipientEmail,
+		subject,
+		text,
+		html,
+	});
 };
 
 const sendPasswordResetEmail = async ({ recipientEmail, token }) => {
-	const transport = createSmtpTransport();
-	const shouldVerifyConnection = parseBooleanEnv(process.env.SMTP_VERIFY_CONNECTION, false);
-
-	if (shouldVerifyConnection && typeof transport.verify === 'function') {
-		try {
-			await transport.verify();
-		} catch (error) {
-			const smtpError = new Error(`SMTP verification failed: ${error.message}`);
-			smtpError.statusCode = 500;
-			throw smtpError;
-		}
-	}
-
 	const baseUrl = process.env.APP_BASE_URL || 'http://localhost:5000';
 	const resetUrl = `${baseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
 
 	try {
-		const info = await transport.sendMail({
-			from: resolveSmtpFrom(),
-			to: recipientEmail,
+		const info = await sendTransactionalEmail({
+			recipientEmail,
 			subject: 'Reset your Campus Mart password',
 			text: `Hi there! 🔐
 
@@ -469,35 +421,6 @@ const signup = async (req, res, next) => {
 			password,
 		});
 
-		const { token: verificationToken, tokenHash, expiresAt } = createEmailVerificationToken();
-		user.emailVerificationTokenHash = tokenHash;
-		user.emailVerificationTokenExpiresAt = expiresAt;
-
-		if (typeof user.save === 'function') {
-			await user.save();
-		} else {
-			await User.findByIdAndUpdate(user._id, {
-				emailVerificationTokenHash: tokenHash,
-				emailVerificationTokenExpiresAt: expiresAt,
-			});
-		}
-
-		let emailDelivery = null;
-		let emailDeliveryFailed = false;
-		let emailDeliveryError = null;
-
-		try {
-			emailDelivery = await sendEmailVerificationMessage({
-				recipientEmail: user.email,
-				recipientFullName: user.fullName,
-				token: verificationToken,
-			});
-		} catch (mailError) {
-			emailDeliveryFailed = true;
-			emailDeliveryError = mailError?.message || 'Verification email could not be delivered';
-			console.error('Verification email delivery failed during signup:', mailError?.message || mailError);
-		}
-
 		const token = signAuthToken(user._id);
 
 		return sendSuccess(res, {
@@ -506,14 +429,6 @@ const signup = async (req, res, next) => {
 			data: serializeUser(user),
 			extras: {
 				token,
-				emailVerificationEmailSent: !emailDeliveryFailed,
-				...(emailDeliveryFailed && {
-					emailDeliveryError: 'Verification email could not be sent right now. Please use resend verification from login.',
-				}),
-				...(process.env.NODE_ENV !== 'production' && {
-					emailDelivery,
-					...(emailDeliveryFailed && { emailDeliveryFailureReason: emailDeliveryError }),
-				}),
 			},
 		});
 	} catch (error) {
@@ -572,87 +487,27 @@ const login = async (req, res, next) => {
 
 const verifyEmail = async (req, res, next) => {
 	try {
-		const token = req.query.token || req.body.token;
-
-		if (!token || typeof token !== 'string') {
-			return sendError(res, { statusCode: 400, message: 'Verification token is required' });
+		if (!req.user) {
+			return sendError(res, { statusCode: 401, message: 'Authentication required' });
 		}
 
-		const tokenHash = getEmailVerificationTokenHash(token.trim());
-		const user = await User.findOne({
-			emailVerificationTokenHash: tokenHash,
-			emailVerificationTokenExpiresAt: { $gt: new Date() },
-		});
-
-		if (!user) {
-			return sendError(res, { statusCode: 400, message: 'Verification token is invalid or expired' });
+		if (req.user.emailVerified) {
+			return sendSuccess(res, {
+				message: 'Email is already verified',
+				data: serializeUser(req.user),
+			});
 		}
 
-		user.emailVerified = true;
-		user.emailVerifiedAt = new Date();
-		user.emailVerificationTokenHash = null;
-		user.emailVerificationTokenExpiresAt = null;
-		await user.save();
+		req.user.emailVerified = true;
+		req.user.emailVerifiedAt = new Date();
+		req.user.emailVerificationTokenHash = null;
+		req.user.emailVerificationTokenExpiresAt = null;
+		await req.user.save();
 
 		return sendSuccess(res, {
 			message: 'Email verified successfully',
-			data: serializeUser(user),
+			data: serializeUser(req.user),
 		});
-	} catch (error) {
-		return next(error);
-	}
-};
-
-const resendVerificationEmail = async (req, res, next) => {
-	try {
-		const { email } = req.body;
-
-		if (!email || typeof email !== 'string') {
-			return sendError(res, { statusCode: 400, message: 'Email is required' });
-		}
-
-		if (!isSchoolEmail(email)) {
-			return sendError(res, { statusCode: 400, message: 'Email must end with @st.ug.edu.gh' });
-		}
-
-		const normalizedEmail = email.toLowerCase();
-		const user = await User.findOne({ email: normalizedEmail });
-
-		if (!user || user.emailVerified) {
-			return sendSuccess(res, {
-				message: 'If an unverified account exists with that email, a verification link has been sent.',
-			});
-		}
-
-		const { token: verificationToken, tokenHash, expiresAt } = createEmailVerificationToken();
-		user.emailVerificationTokenHash = tokenHash;
-		user.emailVerificationTokenExpiresAt = expiresAt;
-		await user.save();
-
-		try {
-			await sendEmailVerificationMessage({
-				recipientEmail: user.email,
-				recipientFullName: user.fullName,
-				token: verificationToken,
-			});
-
-			return sendSuccess(res, {
-				message: 'Verification email sent. Please check your inbox.',
-				extras: {
-					emailVerificationEmailSent: true,
-				},
-			});
-		} catch (mailError) {
-			console.error('Verification email resend failed:', mailError?.message || mailError);
-
-			return sendSuccess(res, {
-				statusCode: 202,
-				message: 'We could not send the verification email right now. Please try again shortly.',
-				extras: {
-					emailVerificationEmailSent: false,
-				},
-			});
-		}
 	} catch (error) {
 		return next(error);
 	}
@@ -857,7 +712,6 @@ module.exports = {
 	signup,
 	login,
 	verifyEmail,
-	resendVerificationEmail,
 	getMe,
 	uploadStudentId,
 	uploadProfileImage,

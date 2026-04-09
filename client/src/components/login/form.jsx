@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { loginUser, resendVerificationEmail } from '../../api/auth';
+import { loginUser } from '../../api/auth';
 import BrandLogo from '../BrandLogo';
 
 export default function LoginForm() {
@@ -8,12 +8,8 @@ export default function LoginForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isResendingVerification, setIsResendingVerification] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [statusMessage, setStatusMessage] = useState('');
-
-    const showResendVerificationAction =
-        String(errorMessage || '').toLowerCase().includes('email is not verified') && Boolean(email.trim());
     
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -35,26 +31,6 @@ export default function LoginForm() {
         }
     };
 
-    const handleResendVerification = async () => {
-        const normalizedEmail = email.trim();
-        if (!normalizedEmail) {
-            setErrorMessage('Enter your university email to resend verification.');
-            return;
-        }
-
-        try {
-            setIsResendingVerification(true);
-            setStatusMessage('');
-
-            const response = await resendVerificationEmail(normalizedEmail);
-            setStatusMessage(response?.message || 'Verification email request sent. Please check your inbox.');
-        } catch (error) {
-            setErrorMessage(error.message || 'Failed to resend verification email');
-        } finally {
-            setIsResendingVerification(false);
-        }
-    };
-
     return (
         <div className="container-main flex flex-col items-center justify-center w-full px-4 py-8 lg:py-12">
             {/* Added border container */}
@@ -73,18 +49,8 @@ export default function LoginForm() {
                 
                 <form onSubmit={handleSubmit} className="login-form flex flex-col w-full space-y-4">
                     {errorMessage && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 space-y-2">
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                             <p>{errorMessage}</p>
-                            {showResendVerificationAction && (
-                                <button
-                                    type="button"
-                                    onClick={handleResendVerification}
-                                    disabled={isResendingVerification}
-                                    className="inline-flex items-center rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    {isResendingVerification ? 'Sending...' : 'Resend verification email'}
-                                </button>
-                            )}
                         </div>
                     )}
 

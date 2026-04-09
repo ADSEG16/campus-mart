@@ -33,17 +33,10 @@ export const getCurrentUser = async ({ token }) => {
   });
 };
 
-export const verifyEmailToken = async (token) => {
+export const verifyEmail = async ({ token }) => {
   return apiRequest("/auth/verify-email", {
     method: "POST",
-    body: { token },
-  });
-};
-
-export const resendVerificationEmail = async (email) => {
-  return apiRequest("/auth/resend-verification-email", {
-    method: "POST",
-    body: { email },
+    token,
   });
 };
 
