@@ -21,14 +21,10 @@ export default function ProtectedRoute({ children }) {
         const currentUser = response?.data || {};
         localStorage.setItem("currentUser", JSON.stringify(currentUser));
 
-        const isVerified = Boolean(
-          currentUser?.isVerified ||
-          currentUser?.emailVerified ||
-          String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
-        );
+        const hasEmailVerification = Boolean(currentUser?.emailVerified);
 
-        if (!isVerified) {
-          setRedirectTo("/marketplace");
+        if (!hasEmailVerification) {
+          setRedirectTo("/signup/verification");
           setAccessState("blocked");
           return;
         }

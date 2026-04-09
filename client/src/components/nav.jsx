@@ -37,6 +37,7 @@ const CampusNavbar = () => {
       String(currentUser?.verificationStatus || "").toLowerCase() === "verified"
     )
   );
+  const isLoggedInUser = Boolean(token);
   const isAdmin = isVerifiedUser && currentUser?.role === "admin";
   const readMarkerKey = `notifications:lastReadAt:${currentUserId}`;
 
@@ -199,6 +200,74 @@ const CampusNavbar = () => {
     </div>
   );
 
+  const renderUserUtilityIcons = ({ mobile = false } = {}) => {
+    if (!isLoggedInUser) {
+      return null;
+    }
+
+    const buttonClassName = mobile
+      ? "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 hover:text-black"
+      : "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 hover:text-black";
+
+    return (
+      <>
+        <Link
+          to="/messages"
+          className={buttonClassName}
+          aria-label="Open messages"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 10h8M8 14h5m-9 7l4-4h10a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2v4z"
+            />
+          </svg>
+        </Link>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowNotifications((prev) => !prev)}
+            className={buttonClassName}
+            aria-label="Toggle notifications"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              />
+            </svg>
+            {hasUnreadNotifications && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+            )}
+          </button>
+          {showNotifications && (
+            <div className={`absolute z-50 mt-2 ${mobile ? "right-0" : "right-0"} w-80`}>
+              <Notifications
+                onMarkAllRead={markAllNotificationsAsRead}
+                onNotificationsStateChange={({ hasUnread }) => setHasUnreadNotifications(Boolean(hasUnread))}
+              />
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
   const renderVerifiedMenu = () => (
     <div className="hidden md:flex items-center space-x-5">
       {location.pathname !== "/marketplace" && (
@@ -237,56 +306,7 @@ const CampusNavbar = () => {
           Admin
         </NavLink>
       )}
-      <Link
-        to="/messages"
-        className="text-gray-600 hover:text-black relative"
-        aria-label="Open messages"
-      >
-        <svg
-          className="h-5 w-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 10h8M8 14h5m-9 7l4-4h10a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2v4z"
-          />
-        </svg>
-        {hasUnreadNotifications && (
-          <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
-        )}
-      </Link>
-      <div className="relative">
-        <button
-          onClick={() => setShowNotifications((prev) => !prev)}
-          className="text-gray-600 hover:text-black relative"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-            />
-          </svg>
-        </button>
-        {showNotifications && (
-          <div className="absolute right-0 mt-2 z-50 w-80">
-            <Notifications
-              onMarkAllRead={markAllNotificationsAsRead}
-              onNotificationsStateChange={({ hasUnread }) => setHasUnreadNotifications(Boolean(hasUnread))}
-            />
-          </div>
-        )}
-      </div>
+      {renderUserUtilityIcons()}
       <Link to="/post-item" className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-full transition-colors">
         <svg
           className="h-4 w-4"
@@ -331,6 +351,7 @@ const CampusNavbar = () => {
       >
         Safety
       </NavLink>
+      {renderUserUtilityIcons()}
       <Link
         to="/signup"
         className="text-sm font-semibold text-gray-700 hover:text-blue-600"
@@ -390,9 +411,10 @@ const CampusNavbar = () => {
 
       {/* Mobile toggles */}
       <div className="flex md:hidden items-center gap-3">
+        {renderUserUtilityIcons({ mobile: true })}
         <button
           onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-          className="p-0 text-gray-700"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gray-700 hover:bg-gray-100"
           aria-label="Toggle navigation"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

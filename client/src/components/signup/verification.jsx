@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ProgressBar from "./progressBar";
 import studentID from "../../assets/studentID.webp";
 import { useNavigate } from "react-router-dom";
 import Navbar from '../navbar';
 import Footer from '../footer';
 import { getStoredAuthToken } from '../../api/http';
-import { uploadStudentId, getCurrentUser } from '../../api/auth';
+import { uploadStudentId, getCurrentUser, verifyEmail } from '../../api/auth';
 
 export default function Verification() {
 	const navigate = useNavigate();
@@ -15,16 +15,11 @@ export default function Verification() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isEmailVerified, setIsEmailVerified] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isRechecking, setIsRechecking] = useState(false);
+	const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
-	const [successMessage, setSuccessMessage] = useState('');
 
-	const checkEmailVerification = async ({ silent = false } = {}) => {
+	const checkEmailVerification = useCallback(async () => {
 		try {
-			if (!silent) {
-				setIsRechecking(true);
-			}
-
 			const authToken = getStoredAuthToken();
 			if (!authToken) {
 				setErrorMessage('Your signup session has expired. Please sign up again.');
@@ -41,23 +36,19 @@ export default function Verification() {
 
 			if (emailVerified) {
 				setErrorMessage('');
-				setSuccessMessage('Email verified successfully. You can continue with student verification.');
 			}
 		} catch (error) {
 			console.error('Failed to check email verification:', error);
 			setErrorMessage('Failed to check email verification status.');
 		} finally {
-			if (!silent) {
-				setIsRechecking(false);
-			}
 			setIsLoading(false);
 		}
-	};
+	}, [navigate]);
 
 	// Check email verification status on mount
 	useEffect(() => {
-		checkEmailVerification({ silent: true });
-	}, [navigate]);
+		checkEmailVerification();
+	}, [checkEmailVerification]);
 
 	const handleFileChange = (e) => {
 		const file = e.target.files[0];
@@ -118,7 +109,6 @@ export default function Verification() {
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setErrorMessage('');
-		setSuccessMessage('');
 
 		if (!uploadedFile) {
 			setErrorMessage('Please upload your student ID first');
@@ -126,7 +116,7 @@ export default function Verification() {
 		}
 
 		if (!isEmailVerified) {
-			setErrorMessage('Please verify your email first by clicking the link in your verification email.');
+			setErrorMessage('Please verify your email first by clicking the Verify Email button.');
 			return;
 		}
 
@@ -140,12 +130,33 @@ export default function Verification() {
 		try {
 			setIsSubmitting(true);
 			await uploadStudentId({ token: authToken, file: uploadedFile });
-			setSuccessMessage('Verification submitted successfully. Continue to profile setup.');
 			navigate('/signup/profileSetup');
 		} catch (error) {
 			setErrorMessage(error.message || 'Failed to submit verification');
 		} finally {
 			setIsSubmitting(false);
+		}
+	};
+
+	const handleVerifyEmail = async () => {
+		const authToken = getStoredAuthToken();
+		if (!authToken) {
+			setErrorMessage('Your signup session has expired. Please sign up again.');
+			navigate('/signup');
+			return;
+		}
+
+		try {
+			setIsVerifyingEmail(true);
+			setErrorMessage('');
+			const response = await verifyEmail({ token: authToken });
+			const verifiedUser = response?.data || response || {};
+			setIsEmailVerified(true);
+			localStorage.setItem('currentUser', JSON.stringify(verifiedUser));
+		} catch (error) {
+			setErrorMessage(error.message || 'Failed to verify email. Please try again.');
+		} finally {
+			setIsVerifyingEmail(false);
 		}
 	};
 
@@ -205,15 +216,15 @@ export default function Verification() {
 							<svg className="w-5 h-5 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
 								<path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
 							</svg>
-							<span>Check your email to verify your account. Click the verification link we sent, then tap Recheck Verification below.</span>
+							<span>Verify your email before uploading your student ID.</span>
 						</div>
 						<button
 							type="button"
-							onClick={() => checkEmailVerification()}
-							disabled={isRechecking}
+							onClick={handleVerifyEmail}
+							disabled={isVerifyingEmail}
 							className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
 						>
-							{isRechecking ? 'Checking...' : 'Recheck Verification'}
+							{isVerifyingEmail ? 'Verifying...' : 'Verify Email'}
 						</button>
 					</div>
 				)}
@@ -224,11 +235,6 @@ export default function Verification() {
 					</div>
 				)}
 
-				{successMessage && (
-					<div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-						{successMessage}
-					</div>
-				)}
 				<div className='grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8'>
 					{/* Left Column - Upload Area */}
 					<div className="space-y-4">

@@ -24,7 +24,7 @@ export default function Footer() {
                 <div className="flex flex-col sm:flex-row justify-between items-center text-sm text-gray-600">
                     {/* Copyright and Description */}
                     <div className="text-center sm:text-left mb-2 sm:mb-0">
-                        © 2024 CampusMart Inc. A secure marketplace for campus communities.
+                        © 2026 CampusMart Inc. A secure marketplace for UG campus.
                     </div>
 
                     {/* Links */}

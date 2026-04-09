@@ -33,7 +33,6 @@ export default function App() {
             <BackToTopButton />
             <Routes>
               <Route path="/" element={<Navigate to="/marketplace" replace />} />
-              <Route path="/marketplace" element={<Dashboard />} />
               <Route path="/profile/:userId" element={<PublicProfile />} />
               <Route path="/safety" element={<Safety />} />
               <Route path="/login" element={<Login />} />
@@ -43,6 +42,7 @@ export default function App() {
               <Route path="/signup/verification" element={<Verification />} />
               <Route path="/signup/profileSetup" element={<ProfileSetup />} />
               <Route element={<ProtectedRoute />}>
+                <Route path="/marketplace" element={<Dashboard />} />
                 <Route path="/dashboard" element={<ListingPage />} />
                 <Route path="/watchlist" element={<WatchList />} />
                 <Route path="/settings" element={<Settings />} />
