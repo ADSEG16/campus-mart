@@ -48,7 +48,7 @@ describe('Order routes', () => {
   });
 
   it('creates an order successfully', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     Product.find.mockResolvedValue([
       {
@@ -96,7 +96,7 @@ describe('Order routes', () => {
   });
 
   it('rejects creating order for own product', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     Product.find.mockResolvedValue([
       {
@@ -122,7 +122,7 @@ describe('Order routes', () => {
   });
 
   it('lists orders for buyer role with pagination', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const orders = [{ _id: 'order-1', buyerId: 'buyer-1' }];
     Order.find.mockReturnValue(createOrderFindQueryMock(orders));
@@ -139,7 +139,7 @@ describe('Order routes', () => {
   });
 
   it('blocks order detail for non-participants', async () => {
-    User.findById.mockResolvedValue({ _id: 'user-x', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'user-x', role: 'user', emailVerified: true, isVerified: true });
 
     Order.findById.mockReturnValue(
       createOrderDetailQueryMock({
@@ -158,7 +158,7 @@ describe('Order routes', () => {
   });
 
   it('blocks Delivered transition when both confirmations are not set', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     const orderDoc = {
@@ -195,7 +195,7 @@ describe('Order routes', () => {
   });
 
   it('blocks seller acceptance/rejection after 48 hours for pending orders', async () => {
-    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     const orderDoc = {
@@ -227,7 +227,7 @@ describe('Order routes', () => {
   });
 
   it('records buyer delivery confirmation through confirm-delivery endpoint', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     const orderDoc = {
@@ -262,7 +262,7 @@ describe('Order routes', () => {
   });
 
   it('applies trust reward after both sides confirm and status moves to Delivered', async () => {
-    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     const orderDoc = {
@@ -308,7 +308,7 @@ describe('Order routes', () => {
   });
 
   it('requires meetup details when moving to Meetup Scheduled', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     const orderDoc = {
@@ -336,7 +336,7 @@ describe('Order routes', () => {
   });
 
   it('stores meetup details when moving to Meetup Scheduled', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     const orderDoc = {
@@ -372,7 +372,7 @@ describe('Order routes', () => {
   });
 
   it('applies actor-based penalty and monitoring on cancellation', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     const orderDoc = {
@@ -410,7 +410,7 @@ describe('Order routes', () => {
   });
 
   it('blocks review submission until order is Delivered', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     Order.findById.mockResolvedValue({
       _id: 'order-1',
@@ -429,7 +429,7 @@ describe('Order routes', () => {
   });
 
   it('enforces one review per order side', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     Order.findById.mockResolvedValue({
       _id: 'order-1',
@@ -450,7 +450,7 @@ describe('Order routes', () => {
   });
 
   it('creates a review and returns trust-score review signal', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     Order.findById.mockResolvedValue({
@@ -516,7 +516,7 @@ describe('Order routes', () => {
   });
 
   it('reports an abusive review for moderation', async () => {
-    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'buyer-1', role: 'user', emailVerified: true, isVerified: true });
 
     const save = jest.fn().mockResolvedValue(undefined);
     Review.findById.mockResolvedValue({

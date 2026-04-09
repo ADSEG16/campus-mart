@@ -75,7 +75,7 @@ describe('Product routes CRUD', () => {
   });
 
   it('POST /api/products creates a product for authenticated seller', async () => {
-    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user', emailVerified: true, isVerified: true });
 
     uploadManyImages.mockResolvedValue([
       { secureUrl: 'https://cdn.example.com/p1.jpg', publicId: 'p1' },
@@ -110,7 +110,7 @@ describe('Product routes CRUD', () => {
   });
 
   it('POST /api/products rejects create request without images', async () => {
-    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user', emailVerified: true, isVerified: true });
 
     const response = await request(app)
       .post('/api/products')
@@ -128,7 +128,7 @@ describe('Product routes CRUD', () => {
   });
 
   it('PATCH /api/products/:id blocks updates by non-owner', async () => {
-    User.findById.mockResolvedValue({ _id: 'user-2', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'user-2', role: 'user', emailVerified: true, isVerified: true });
 
     Product.findById.mockResolvedValue({
       _id: 'product-1',
@@ -145,7 +145,7 @@ describe('Product routes CRUD', () => {
   });
 
   it('DELETE /api/products/:id deletes product for owner', async () => {
-    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user', emailVerified: true, isVerified: true });
 
     Product.findById.mockResolvedValue({
       _id: 'product-1',
@@ -167,7 +167,7 @@ describe('Product routes CRUD', () => {
   });
 
   it('DELETE /api/products/:id blocks deletion when active order exists', async () => {
-    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user' });
+    User.findById.mockResolvedValue({ _id: 'seller-1', role: 'user', emailVerified: true, isVerified: true });
 
     Product.findById.mockResolvedValue({
       _id: 'product-1',

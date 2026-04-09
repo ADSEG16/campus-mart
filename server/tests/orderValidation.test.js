@@ -39,7 +39,7 @@ describe('Order Validation - createOrder', () => {
 
   beforeEach(() => {
     req = {
-      user: { _id: new mongoose.Types.ObjectId('cccccccccccccccccccccccc') },
+      user: { _id: new mongoose.Types.ObjectId('cccccccccccccccccccccccc'), emailVerified: true, isVerified: true },
       body: {
         items: [{ productId: String(mockProduct._id), quantity: 1 }],
       },
