@@ -783,8 +783,11 @@ const getAllUsers = async (req, res, next) => {
       .select('_id fullName email role trustScore flagged verificationStatus createdAt updatedAt')
       .sort({ createdAt: -1 });
 
+    // Count total registered students (exclude admins)
+    const studentUsers = users.filter((user) => user.role !== 'admin');
+    
     const userCounts = {
-      total: users.length,
+      total: studentUsers.length, // Total excluding admins
       byRole: {},
       byStatus: {},
     };
@@ -793,16 +796,19 @@ const getAllUsers = async (req, res, next) => {
       const role = user.role || 'student';
       userCounts.byRole[role] = (userCounts.byRole[role] || 0) + 1;
       
-      const status = user.flagged ? 'flagged' : (user.verificationStatus || 'unverified');
-      userCounts.byStatus[status] = (userCounts.byStatus[status] || 0) + 1;
+      // Only count status for non-admin users
+      if (user.role !== 'admin') {
+        const status = user.flagged ? 'flagged' : (user.verificationStatus || 'unverified');
+        userCounts.byStatus[status] = (userCounts.byStatus[status] || 0) + 1;
+      }
     });
 
     return sendSuccess(res, {
       message: 'All users fetched successfully',
       data: users,
       pagination: {
-        total: users.length,
-        count: users.length,
+        total: studentUsers.length,
+        count: studentUsers.length,
       },
       extras: {
         userCounts,
