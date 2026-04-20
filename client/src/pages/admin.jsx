@@ -239,10 +239,26 @@ export default function AdminPage() {
 
       if (allUsersResult.status === "fulfilled") {
         const response = allUsersResult.value;
-        setAllUsers(response.data || response);
-        if (response.extras?.userCounts) {
-          setUserCounts(response.extras.userCounts);
-        }
+        const rawUsers = Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response)
+            ? response
+            : [];
+
+        const roleUsersOnly = rawUsers.filter(
+          (user) => String(user?.role || "").toLowerCase() === "user"
+        );
+
+        setAllUsers(roleUsersOnly);
+
+        const resolvedUserCounts = response.userCounts || response.extras?.userCounts;
+        setUserCounts({
+          total: roleUsersOnly.length,
+          byRole: {
+            user: roleUsersOnly.length,
+          },
+          byStatus: resolvedUserCounts?.byStatus || {},
+        });
       } else {
         failures.push("all users");
       }
@@ -535,7 +551,7 @@ export default function AdminPage() {
       { 
         label: "Total Users", 
         value: userCounts.total, 
-        hint: Object.entries(userCounts.byRole || {}).map(([role, count]) => `${count} ${role}`).join(", ") || "No users",
+        hint: Object.entries(userCounts.byRole || {}).map(([role, count]) => `${count} ${role}s`).join(", ") || "No users",
         icon: Users,
         tone: "from-indigo-500 to-purple-500"
       },
