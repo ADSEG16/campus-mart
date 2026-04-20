@@ -1,168 +1,290 @@
 # CampusMart Documentation
 
-This document explains how to run the system, the trust score behavior, admin moderation, and COD meetup flow from the current repository state.
+## 1. System Overview
+
+CampusMart is a student marketplace platform with:
+
+1. Verified user onboarding and role-based access (`user`, `admin`)
+2. Product listings and image uploads
+3. Buyer-seller messaging via product-based conversations
+4. COD order workflow with trust and moderation controls
+5. Admin analytics, review reporting, and moderation tools
+
+Primary folders:
+
+1. `client/` - React + Vite frontend
+2. `server/` - Express + MongoDB backend
+3. `docs/` - project documentation
 
 ---
 
-## 1. How to Run the System
+## 2. Running the System
 
-### 1.1 Prerequisites
-- Node.js v18+ and npm
-- MongoDB instance (local or cloud)
-- Cloudinary account & credentials for image uploads
-- Git checkout of repository in `c:\Users\Mikaela-Jessie\campus-mart`
+### 2.1 Prerequisites
 
-### 1.2 Server Setup
-1. Navigate to server folder:
-   - `cd c:\Users\Mikaela-Jessie\campus-mart\server`
-2. Install dependencies:
-   - `npm install`
-3. Create `.env` from `.env.example` and set:
-   - `MONGODB_URI` (e.g., `mongodb://localhost:27017/campusmart`)
-   - `JWT_SECRET`
-   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-   - optional: `CANCELLATION_FLAG_THRESHOLD` (default 3)
-4. Run API 
-   - `npm run dev` to start with `nodemon` (or `npm start` for production)b
-5. API base path: `http://localhost:8000` (default in `server/src/server.js`)
+1. Node.js 18+
+2. npm 9+
+3. MongoDB (Atlas or local)
+4. Cloudinary account
 
-### 1.3 Client Setup
-1. Navigate to client folder:
-   - `cd c:\Users\Mikaela-Jessie\campus-mart\client`
-2. Install dependencies:
-   - `npm install`
-3. Start frontend:
-   - `npm run dev`
-4. Open `http://localhost:5173` in browser (Vite default). 
+### 2.2 Server Setup
 
-### 1.4 Basic API / Routes Summary
-#### Authentication (server/src/routes/auth.routes.js)
-- `POST /api/auth/signup`  -> sign up, includes student email validation (`@st.ug.edu.gh`)
-- `POST /api/auth/login` -> login
-- `GET /api/auth/me` -> user profile
-- `POST /api/auth/upload-student-id` -> upload ID, sets `verificationStatus = pending`
-- `POST /api/auth/upload-profile` -> profile image upload
+```bash
+cd server
+npm install
+```
 
-#### Products (server/src/routes/product.routes.js)
-- `GET /api/products` -> list products
-- `POST /api/products` -> create product (auth)
-- `GET /api/products/:productId` -> get product
-- `PATCH /api/products/:productId` -> update product (seller or admin)
-- `DELETE /api/products/:productId` -> delete product (seller or admin)
+Create `server/.env` with at least:
 
-#### Orders (server/src/routes/order.routes.js)
-- `PATCH /api/orders/:orderId/status` -> update statel
-- `PATCH /api/orders/:orderId/cancel` -> cancel order
+```dotenv
+PORT=5000
+MONGO_URI=<mongo_connection_string>
+JWT_SECRET=<jwt_secret>
+CLOUDINARY_NAME=<cloudinary_name>
+CLOUDINARY_API_KEY=<cloudinary_api_key>
+CLOUDINARY_SECRET=<cloudinary_secret>
+APP_BASE_URL=http://localhost:5000
+CLIENT_BASE_URL=http://localhost:5173
+MESSAGE_ENCRYPTION_KEY=<base64_encryption_key>
+```
 
-#### Admin (server/src/routes/admin.routes.js)
-- `GET /api/admin/flagged-users` -> list flagged users (admin only)
+Optional trust and moderation tuning:
 
----
+```dotenv
+LOW_TRUST_FLAG_THRESHOLD=20
+CANCELLATION_FLAG_THRESHOLD=3
+```
 
-## 2. How Trust Score Works (Current Implementation)
+Email delivery options:
 
-### 2.1 Current Mechanism
-There is no explicit `trustScore` numeric field in the DB, but reliability is tracked via:
-- `User.flagged` boolean
-- `Order.status` and cancellation behavior
+1. Brevo API mode (recommended for production)
 
-A user is evaluated by the cancellation monitor in `server/src/services/cancellationMonitor.service.js`.
+```dotenv
+EMAIL_DELIVERY_PROVIDER=brevo
+BREVO_API_KEY=<brevo_api_key>
+BREVO_SENDER_EMAIL=<verified_sender_email>
+BREVO_SENDER_NAME=CampusMart
+```
 
-### 2.2 Cancellation Monitoring
-1. Triggered when an order moves to `Cancelled` (via `/api/orders/:orderId/status` or `/cancel`).
-2. Count of canceled orders in a rolling window of `WINDOW_HOURS = 24` hours is computed.
-3. `CANCELLATION_FLAG_THRESHOLD` (env; default 3) is the threshold.
-4. If `cancellationCount > threshold`, user is flagged:
-   - `User.flagged = true`
+2. SMTP mode (fallback / local testing)
 
-### 2.3 Trust Score Interpretation
-- `flagged: false` = good standing.
-- `flagged: true` = repeat cancellation / low reliability.
-- Admin uses flagged list to escalate checks, block transactions, or manually review.
+```dotenv
+EMAIL_DELIVERY_PROVIDER=smtp
+SMTP_HOST=<smtp_host>
+SMTP_PORT=587
+SMTP_USER=<smtp_user>
+SMTP_PASS=<smtp_pass>
+SMTP_FROM=CampusMart <no-reply@example.com>
+SMTP_SECURE=false
+SMTP_REQUIRE_TLS=true
+SMTP_VERIFY_CONNECTION=false
+SMTP_IP_FAMILY=4
+SMTP_CONNECTION_TIMEOUT_MS=15000
+SMTP_GREETING_TIMEOUT_MS=10000
+SMTP_SOCKET_TIMEOUT_MS=20000
+```
 
-> Future addition: add numeric `trustScore`, e.g. 100 - (cancellations * 10) and store in DB.
+Run server:
 
----
+```bash
+npm run dev
+```
 
-## 3. How Admin Moderation Works
+### 2.3 Client Setup
 
-### 3.1 Admin Role and Guards
-- `role` in `User` schema is either `user` or `admin`
-- `requireAdmin` middleware in `server/src/middleware/auth.middleware.js` ensures admin-only endpoint access.
-- Endpoints requiring admin:
-  - `GET /api/admin/flagged-users`
+```bash
+cd client
+npm install
+```
 
-### 3.2 Flagged and Verification States
-User document fields:
-- `flagged` (bool)
-- `verificationStatus` ('pending' | 'verified' | 'rejected')
-- `isVerified` (boolean)
+Create `client/.env`:
 
-When cancellations exceed threshold, `flagged` toggles true by `monitorUserCancellationBehavior()`.
+```dotenv
+VITE_API_BASE_URL=http://localhost:5000/api
+```
 
-### 3.3 Admin Workflow
-1. Admin fetches flagged list: `GET /api/admin/flagged-users`.
-2. Inspect user and order history, especially cancellations.
-3. Optionally run manual actions in UI (not implemented), or use DB updates:
-   - `User.flagged = false` (after review)
-   - `User.verificationStatus = 'verified'` / `'rejected'` depending on student ID approval.
+Run client:
 
-### 3.4 Extending Moderation
-Recommended new endpoints:
-- `PATCH /api/admin/users/:userId/flag` (set true/false)
-- `PATCH /api/admin/users/:userId/verificationStatus`
-- `GET /api/admin/users/:userId/orders`
+```bash
+npm run dev
+```
+
+### 2.4 Health Check
+
+`GET /api/health`
 
 ---
 
-## 4. How COD Meetup Works
+## 3. API and Module Summary
 
-### 4.1 Order Status Workflow
-Order model (server/src/models/order.model.js) has `status` enum:
-- `Pending`
-- `Meetup Scheduled`
-- `Delivered`
-- `Cancelled`
+### 3.1 Auth Routes (`/api/auth`)
 
-Allowed transitions (server/src/constants/orderStatus.js):
-- `Pending` -> `Meetup Scheduled` or `Cancelled`
-- `Meetup Scheduled` -> `Delivered` or `Cancelled`
-- `Delivered` and `Cancelled` are terminal
+1. `POST /signup`
+2. `POST /login`
+3. `POST /verify-email` (authenticated)
+4. `POST /forgot-password`
+5. `POST /reset-password`
+6. `GET /me` (authenticated)
+7. `POST /upload-student-id` (authenticated)
+8. `POST /upload-profile-image` (authenticated)
+9. `PATCH /complete-profile` (authenticated)
 
-Legacy mapping in controller accepts short values:
-- `pending`
-- `accepted` -> `Meetup Scheduled`
-- `completed` -> `Delivered`
-- `cancelled` or `rejected` -> `Cancelled`
+### 3.2 Product Routes (`/api/products`)
 
-### 4.2 API Update Flow
-Endpoint: `PATCH /api/orders/:orderId/status`
-- Body: `{ nextStatus: '<status>' [, cancellationReason: '...'] }`
-- Enforced by `canTransition` in `server/src/controllers/order.controller.js`
-- `buyer`, `seller`, or `admin` may call
+1. `GET /`
+2. `GET /seller/:sellerId`
+3. `GET /:productId`
+4. `POST /` (authenticated)
+5. `PATCH /:productId` (authenticated + ownership check)
+6. `DELETE /:productId` (authenticated + ownership check)
 
-### 4.3 COD Stage Meaning
-- `Pending`: order placed; seller sees request.
-- `Meetup Scheduled`: buyer and seller coordinate an on-campus pickup point (`meetingSpot`), ready for handshake.
-- `Delivered`: meetup completed, payment exchanged, transaction final.
-- `Cancelled`: order aborted; cancellation reason logged, and monitor run.
+### 3.3 Order Routes (`/api/orders`)
 
-### 4.4 Buyer/Seller Confirmation Fields
-`Order` has:
-- `buyerConfirmed` (bool)
-- `sellerConfirmed` (bool)
+1. `POST /` (create order)
+2. `GET /` (list user orders)
+3. `GET /:orderId`
+4. `PATCH /:orderId/confirm-delivery`
+5. `PATCH /:orderId/status`
+6. `PATCH /:orderId/cancel`
+7. `POST /:orderId/reviews`
+8. `GET /seller/:sellerId/reviews`
+9. `POST /reviews/:reviewId/report`
 
-These are available now in schema but the standard status transitions are primary.
+### 3.4 Conversation Routes (`/api/conversations`)
+
+1. `GET /` (list current user conversations)
+2. `POST /start` (create or reuse product-based conversation)
+3. `GET /:conversationId/messages`
+
+### 3.5 Admin Routes (`/api/admin`)
+
+All require authenticated admin user:
+
+1. Verification queue and actions
+2. Flagged users and suspension tools
+3. Listing moderation
+4. Reported review moderation
+5. Notifications and activity feed
+6. Analytics and CSV exports
+7. All users summary
 
 ---
 
-## 5. Notes for Developers
+## 4. Trust Score and Safety Logic
 
-- Authentication uses JWT and `server/src/middleware/auth.middleware.js`.
-- `server/src/config/cloudinary.js` and `server/src/config/multer.js` manage uploads.
-- Product listing includes `meetingSpot` for COD meetup location.
-- UI under `client/src` has pages for dashboard, listing, transactions and watchlist.
+### 4.1 Current Trust Score Model
 
-## 6. Where to Put Next Docs
-- Add more docs to `docs/` for "deployment" and "release checklist".
-- Keep this file as central architecture + workflow reference.
+`User.trustScore` is a numeric field (`0` to `100`, default `50`).
+
+Current trust adjustment rules:
+
+1. Successful delivery: `+5`
+2. Order cancellation penalty: `-5`
+3. Admin complaint penalty: `-10`
+4. Positive review (`>= 4`): `+1`
+5. Negative review (`<= 2`): `-1`
+
+When trust score drops below threshold (`LOW_TRUST_FLAG_THRESHOLD`, default `20`), user is flagged.
+
+### 4.2 Cancellation Monitoring
+
+A separate cancellation monitor checks user cancellations in a rolling 7-day window.
+
+1. Threshold env key: `CANCELLATION_FLAG_THRESHOLD` (default `3`)
+2. If cancellations reach threshold, user is flagged
+
+---
+
+## 5. COD Order Workflow
+
+### 5.1 Canonical Order Status Values
+
+1. `pending`
+2. `meetup_scheduled`
+3. `delivered`
+4. `cancelled`
+
+### 5.2 Allowed Transitions
+
+1. `pending -> meetup_scheduled | cancelled`
+2. `meetup_scheduled -> delivered | cancelled`
+3. `delivered` terminal
+4. `cancelled` terminal
+
+### 5.3 Delivery Confirmation
+
+`confirm-delivery` tracks buyer/seller confirmation flags. Transition to `delivered` requires both confirmations.
+
+On delivery:
+
+1. Trust score rewards are applied
+2. Order conversation and messages get an `expiresAt` timestamp for cleanup
+3. Delivery email notifications are attempted
+
+---
+
+## 6. Messaging and Conversation Model
+
+Conversations are product-scoped and participant-scoped.
+
+1. One room per buyer-seller-product combination
+2. If an order is later attached, the same room can be linked to that order
+3. Messages are stored encrypted-at-rest and decrypted for authorized participants
+4. Conversation/message records can expire after delivered orders
+
+---
+
+## 7. Email Delivery Behavior
+
+### 7.1 Auth Emails
+
+Verification and password reset use provider selection:
+
+1. Brevo API (HTTPS) when `EMAIL_DELIVERY_PROVIDER=brevo`
+2. SMTP transport when `EMAIL_DELIVERY_PROVIDER=smtp`
+
+Signup is resilient: account creation can succeed even if verification email delivery fails.
+
+### 7.2 Order Delivery Emails
+
+Order-delivered notification emails currently use SMTP transport configuration in `order.controller.js`.
+
+---
+
+## 8. Admin Moderation Scope
+
+Admin pages and APIs support:
+
+1. Verification review (`pending`, `verified`, `rejected`)
+2. Flagged user review and suspension actions
+3. Complaint penalty actions
+4. Listing removals with audit trail
+5. Review abuse report resolution
+6. Analytics and exportable reports
+
+---
+
+## 9. Testing and Quality Checks
+
+Backend tests:
+
+```bash
+cd server
+npm test
+```
+
+Frontend lint:
+
+```bash
+cd client
+npm run lint
+```
+
+---
+
+## 10. Notes for Contributors
+
+1. Keep route docs aligned with files under `server/src/routes/`
+2. Keep status enums aligned with `server/src/constants/order.status.js`
+3. Keep trust logic docs aligned with `server/src/services/trustScore.service.js`
+4. Update this file whenever auth, moderation, conversation, or email flows change
